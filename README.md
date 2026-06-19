@@ -1,15 +1,26 @@
-# Autonomous SOC: Live-Traffic Containerized Cyber Range
+# Autonomous SOC: Containerized Cyber Range
 
-This repository deploys a fully self-contained, segmented enterprise network operating an autonomous Security Operations Center (SOC). It utilizes a custom Random Forest machine learning model for anomaly detection and a CrewAI multi-agent swarm for automated threat context and firewall mitigation. The infrastructure is entirely contained within Docker Compose, simulating a DMZ and an Internal Secure Network bridged by a highly privileged routing container.
+This repository deploys a fully self-contained, segmented enterprise network operating an **Autonomous Security Operations Center (SOC)**. 
+
+It utilizes a custom **Random Forest Machine Learning Gatekeeper** trained purely on the organic *UNSW-NB15* dataset for real-time packet inspection, combined with a **LangGraph (Gemini 2.5 Flash)** multi-agent swarm for automated threat context, reasoning, and physical firewall mitigation. 
+
+The entire environment is orchestrated within Docker Compose, simulating a hostile DMZ and a secure Internal Network, bridged entirely by a highly privileged routing container that acts as the Brain.
+
+## Project Structure
+
+- **`/soc_brain`**: The core AI appliance. Captures packets via `NFStream`, evaluates them against dual Random Forest models, and spawns the LangGraph swarm to execute physical `iptables` commands.
+- **`/attacker`**: An isolated node in the DMZ. Runs a multi-threaded Python engine to forge mathematically-aligned raw Ethernet frames using `Scapy` and fires them into the SOC.
+- **`/dashboard-ui`**: A stateless, ultra-fast React + TypeScript frontend that polls the backend APIs to display real-time network traffic, LangGraph agent workflows, and active mitigations.
+- **`/docs`**: Contains the full ML Engineering Report and a standalone HTML presentation outlining the architecture and data engineering.
 
 ## Prerequisites
 
 - Docker and Docker Compose installed on a Linux or macOS host system.
-- An active Gemini API key for the CrewAI swarm. The agents require API access to perform their cognitive reasoning steps.
+- An active Gemini API key. The LangGraph agents require API access to perform cognitive reasoning and tool execution.
 
 ## 1. Environment Configuration
 
-Copy the example environment file and provide your API key. This key will be passed into the sensor container.
+Copy the example environment file and provide your API key. This key will be passed securely into the sensor container.
 
 ```bash
 cp .env.example .env
@@ -18,62 +29,41 @@ cp .env.example .env
 
 ## 2. Bootstrapping the Architecture
 
-Initialize the segmented network and build the Alpine-based ML/Sensor image.
+Initialize the segmented network and build the Docker images.
 
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
-> **Note:** Upon successful initialization, the `soc-sensor-brain` container will immediately begin generating the synthetic UNSW-NB15 dataset, training the Random Forest model, serializing the `.pkl` file, and initiating live packet ingestion on both `eth0` and `eth1`.
+> **Note:** Upon initialization, the `soc-sensor-brain` container will parse the dataset, dynamically train the Random Forest models, bind to `eth0` and `eth1`, and start the Flask API. Wait approximately 10-15 seconds for this internal pipeline to finish before launching attacks.
 
-## 3. Monitoring the Autonomous SOC
+## 3. Accessing the Command Center
 
-To view the output of the ML inference engine and the CrewAI orchestrator in real-time, attach to the sensor's logs. Leave this terminal window open during testing.
+You no longer need to use `docker logs` or manual shell commands to interact with the environment.
 
-```bash
-docker logs -f soc-sensor-brain
-```
+Open your browser and navigate to the React Dashboard:
+**[http://localhost:5173](http://localhost:5173)**
 
-## 4. Simulating a Live Attack
+## 4. Simulating Attacks
 
-The environment is designed to route traffic through the sensor. To test the detection pipeline, we will simulate a volumetric DoS attack from the attacker-node (located in the DMZ) targeting the highly critical hr-portal (located in the Internal Secure Network).
+From the **Attacker Simulator** panel on the right side of the dashboard:
+1. Select an attack vector (e.g., *Volumetric DoS*, *Exploits*, *Reconnaissance*, *Backdoor*).
+2. Choose whether to use a static DMZ IP or enable **Randomize Source IP** to test volumetric defense.
+3. Click **Deploy Attack**.
 
-Open a secondary terminal window and access the shell of the attacker node:
+The dashboard will instantly communicate with the isolated `attacker-node`, which will begin forging raw Layer-2 packets and blasting them at the internal network.
 
-```bash
-docker exec -it attacker-node sh
-```
+## 5. The Defense Pipeline in Action
 
-Verify that the static routes are functioning by pinging the HR portal:
+As the attack fires, watch the dashboard:
+1. **Network Anomaly Chart**: You will see live bandwidth spikes exactly as the NFStream engine captures them.
+2. **Machine Learning Logs**: The ML pipeline will detect the anomaly, bypass the background noise, and categorize the specific threat vector in real-time.
+3. **Agentic Orchestration**: The LangGraph pipeline tracker will light up. Hover over the nodes (Detection, Triage, Context, Response) to see the exact Markdown chain-of-thought the Gemini agents are generating.
+4. **Autonomous Mitigation**: The Response agent will execute a Python tool to physically alter the Linux `iptables` routing tables.
+5. **Mitigation Success**: The attack traffic will instantly flatline on the chart, and the attacker's IP will appear in the **Active Mitigations** table.
 
-```bash
-ping -c 3 10.5.2.30
-```
+You can view the comprehensive, formatted markdown outputs of every single AI decision in the **AI Intelligence Reports** tab.
 
-Execute a rapid packet injection using `hping3` to trigger the ML anomaly threshold. The `--flood` flag sends packets as fast as possible, simulating the high packet velocity and duration characteristics typical of Class 1 attack traffic in our Random Forest training dataset.
+## Complete Wipe / Reset
 
-```bash
-hping3 -S -p 80 --flood 10.5.2.30
-```
-
-Allow the flood to run for approximately 10 seconds, then press `Ctrl+C` to terminate it.
-
-## 5. Validating the Mitigation
-
-Switch back to the terminal window monitoring the `soc-sensor-brain` logs. You will observe the following sequence of events:
-
-1. **Detection:** The log will indicate that NFStream captured the massive flow passing between `eth0` and `eth1`. The Random Forest model will evaluate the statistical array (duration, packets, bytes) and classify it as anomalous with >85% confidence.
-2. **Orchestration:** You will observe the CrewAI LLM swarm initializing. The agents will print their chain-of-thought to the console.
-3. **Contextualization:** The Context Agent will execute the `lookup_asset` tool, identifying `10.5.2.30` as the hr-portal, a "High" criticality asset.
-4. **Mitigation:** The Response Agent will determine that a critical asset is under active attack and execute the `block_ip` tool against the attacker's IP (`10.5.1.10`).
-5. **Validation:** The log will print the "AUTONOMOUS SOC RESOLUTION REPORT".
-
-### Verification
-
-Return to the `attacker-node` shell and attempt to contact the portal again:
-
-```bash
-curl --connect-timeout 5 http://10.5.2.30
-```
-
-This request will now result in a definitive timeout. The `FORWARD` chain rule inside the sensor router has successfully dropped the routing path, proving that the Autonomous SOC successfully detected, contextualized, and mitigated the live threat.
+To flush all `iptables` rules, clear the agent memory, and stop all active Scapy threads, simply click the red **Reset Environment** button at the top of the dashboard.
