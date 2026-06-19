@@ -1,0 +1,47 @@
+# Dockerfile.sensor
+# Base Image: Alpine Linux for minimal resource overhead
+FROM alpine:3.18
+
+# Suppress interactive prompts and set unbuffered Python output 
+# to ensure real-time logging reaches the Docker console immediately.
+ENV PYTHONUNBUFFERED=1
+
+# Install system-level dependencies, networking tools, and precompiled ML libraries.
+# Utilizing Alpine's native package manager (apk) circumvents musl-libc wheel 
+# compilation errors for heavy data science libraries.
+RUN apk update && apk add --no-cache \
+    python3 \
+    py3-pip \
+    python3-dev \
+    gcc \
+    g++ \
+    musl-dev \
+    linux-headers \
+    libpcap-dev \
+    iptables \
+    iproute2 \
+    tcpdump \
+    py3-scikit-learn \
+    py3-numpy \
+    py3-pandas
+
+# Upgrade pip and install the NFStream traffic analyzer, CrewAI orchestration frameworks, Langchain Google GenAI, and Flask.
+# The --break-system-packages flag is explicitly required in recent Python versions on Alpine 
+# when mixing apk and pip package installations, which is necessary to bridge the pre-compiled
+# SciKit-Learn package with the latest CrewAI libraries.
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir \
+    nfstream \
+    langgraph \
+    langchain-core \
+    langchain-google-genai \
+    flask \
+    flask-cors \
+    imbalanced-learn==0.11.0 \
+    --break-system-packages
+
+# Establish the working directory for the application scripts.
+WORKDIR /opt/soc
+
+# Default command placeholder; executed dynamically by docker-compose.
+CMD ["tail", "-f", "/dev/null"]

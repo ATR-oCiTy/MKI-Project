@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous SOC - Milestone Report</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Fira+Code:wght@400;600&display=swap');
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+            background-color: #020617; /* Deep Slate */
+            color: #f8fafc;
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* Hide scrollbar for cleaner presentation */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+
+        .slide {
+            min-height: 100vh;
+            width: 100vw;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 5rem 10%;
+            box-sizing: border-box;
+            position: relative;
+            text-align: center;
+            background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
+        }
+
+        .slide:nth-child(even) {
+            background: radial-gradient(circle at 100% 0%, rgba(6, 182, 212, 0.05) 0%, #020617 60%);
+        }
+        
+        .slide:nth-child(odd) {
+            background: radial-gradient(circle at 0% 100%, rgba(139, 92, 246, 0.05) 0%, #020617 60%);
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, #06b6d4, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #06b6d4;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+        }
+
+        p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            max-width: 800px;
+            color: #cbd5e1;
+            margin-bottom: 1.5rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 2rem;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: left;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #06b6d4;
+        }
+
+        .card h3 {
+            color: #8b5cf6;
+            margin-top: 0;
+            font-size: 1.3rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .card ul {
+            padding-left: 1.5rem;
+            color: #cbd5e1;
+            line-height: 1.5;
+            font-size: 1.05rem;
+            margin: 0;
+        }
+
+        .card p {
+            font-size: 1.05rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .code-block {
+            font-family: 'Fira Code', monospace;
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 8px;
+            color: #10b981;
+            font-size: 1rem;
+            text-align: left;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .badge {
+            background: rgba(6, 182, 212, 0.2);
+            color: #06b6d4;
+            padding: 0.5rem 1rem;
+            border-radius: 99px;
+            font-weight: 600;
+            font-size: 1rem;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+
+        .scroll-prompt {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: bounce 2s infinite;
+            color: rgba(255,255,255,0.3);
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0) translateX(-50%); }
+            40% { transform: translateY(-10px) translateX(-50%); }
+            60% { transform: translateY(-5px) translateX(-50%); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SLIDE 1: TITLE -->
+    <div class="slide">
+        <div class="badge">Milestone Report</div>
+        <h1>Autonomous SOC Brain</h1>
+        <p style="font-size: 1.5rem; color: #fff;">A Containerized, AI-Driven Cyber Range</p>
+        <p>Combining traditional Machine Learning for real-time packet inspection with Generative AI Agents for autonomous incident triage, context reasoning, and active network mitigation.</p>
+        <div class="scroll-prompt">Scroll Down ↓</div>
+    </div>
+
+    <!-- SLIDE 2: ARCHITECTURE -->
+    <div class="slide">
+        <h2>Network Architecture</h2>
+        <p>The environment is strictly segmented using Docker Compose to simulate a real-world enterprise edge. The SOC Brain sits directly in the middle, intercepting all Layer-2 traffic.</p>
+        <div class="grid">
+            <div class="card">
+                <h3>DMZ Network (10.5.1.0/24)</h3>
+                <p>The hostile external zone.</p>
+                <ul>
+                    <li><b>Attacker Node:</b> Generates statistically forged malicious packets using Scapy.</li>
+                    <li><b>DMZ Web:</b> An exposed, vulnerable Nginx server.</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>SOC Sensor Brain</h3>
+                <p>The gateway appliance.</p>
+                <ul>
+                    <li>Binds to both networks.</li>
+                    <li>Inspects flows and executes <code>iptables</code> blocks directly on the Linux kernel.</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Internal Network (10.5.2.0/24)</h3>
+                <p>The secure enterprise zone.</p>
+                <ul>
+                    <li><b>HR Portal:</b> Mock Python web application.</li>
+                    <li><b>Internal DB:</b> Sensitive Redis datastore.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 3: THE DATASET -->
+    <div class="slide">
+        <h2>The Ground Truth: UNSW-NB15 Dataset</h2>
+        <p>To train our Machine Learning gatekeepers, we needed a massive, realistic dataset. We utilized the prestigious <b>UNSW-NB15</b> cyber security dataset, which contains pure, organic network traffic captures.</p>
+        <div class="grid">
+            <div class="card">
+                <h3>Vast Scale</h3>
+                <p>The dataset contains over <b>175,000 distinct data points</b> (network flows) in its core training set, representing a massive array of both benign enterprise traffic and modern cyber attacks.</p>
+            </div>
+            <div class="card">
+                <h3>9 Attack Categories</h3>
+                <p>The data is flawlessly categorized into distinct vectors, including: DoS, Exploits, Reconnaissance, Backdoors, Fuzzers, Analysis, Shellcode, and Worms.</p>
+            </div>
+            <div class="card">
+                <h3>No Synthetic Fakes</h3>
+                <p>We strictly enforced a "Purity Rule". We <b>did not</b> forge fake data points using tools like SMOTE. We simply amplified the real, organic signatures so the AI learns what an actual attack looks like, not a hallucination.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 4: FEATURE ENGINEERING -->
+    <div class="slide">
+        <h2>Data Engineering: The Math Behind the Packets</h2>
+        <p>A network flow generates dozens of chaotic metrics. To make this digestable for our ML models in real-time, we compress them into exactly <b>9 core mathematical features</b>.</p>
+        <div class="grid">
+            <div class="card">
+                <h3>The Raw Features</h3>
+                <p>We capture raw statistics like:</p>
+                <ul>
+                    <li><code>spkts</code> & <code>dpkts</code> (Packets sent/received)</li>
+                    <li><code>sbytes</code> & <code>dbytes</code> (Bytes sent/received)</li>
+                    <li><code>dur</code> (Flow duration)</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Logarithmic Compression</h3>
+                <p><b>Why we do it:</b> A sudden DoS attack could send 10,000x more bytes than normal, breaking the ML math. <br><br>By applying a "Logarithmic Transformation", we squeeze these massive numbers down into a predictable, smooth scale that the AI can instantly understand without crashing.</p>
+            </div>
+            <div class="card">
+                <h3>Behavioral Ratios</h3>
+                <p><b>Why we do it:</b> Raw packet counts fluctuate. Ratios don't.<br><br>We divide sent bytes by received bytes. This exposes the <i>behavior</i> of the attack. (e.g., A Port Sweep sends lots of data but receives almost nothing back!).</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 5: MACHINE LEARNING -->
+    <div class="slide">
+        <h2>The Machine Learning Gatekeeper</h2>
+        <p>Before any Generative AI gets invoked, every single network flow must pass through a two-stage <b>Random Forest</b> pipeline. Why Random Forest? Because it is incredibly fast at real-time packet inspection and highly resilient to noisy data.</p>
+        <div class="grid">
+            <div class="card">
+                <h3>Stage 1: The Bouncer (Binary)</h3>
+                <p>A simple Yes/No model. Determines if the traffic is <code>Normal</code> or an <code>Anomaly</code>.</p>
+                <ul>
+                    <li><b>Accuracy:</b> 94.6%</li>
+                    <li><b>Precision (Attack):</b> 96.8%</li>
+                </ul>
+                <p style="font-size: 0.9rem; margin-top: 10px;">This filters out 99% of normal background traffic so we don't flood our expensive LLM APIs!</p>
+            </div>
+            <div class="card">
+                <h3>Stage 2: The Detective (Multi-Class)</h3>
+                <p>If an anomaly is detected, this model categorizes the specific attack vector (DoS, Exploit, Reconnaissance).</p>
+                <p style="font-size: 0.9rem; margin-top: 10px;">We trained this with 150 parallel "decision trees" capping at a depth of 15 to ensure it doesn't overthink simple patterns.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 6: REAL WORLD ROADBLOCKS -->
+    <div class="slide">
+        <h2>Overcoming ML Roadblocks</h2>
+        <p>Training an AI in a vacuum is easy. Deploying it in a live Cyber Range is hard. Here are two massive engineering challenges we solved:</p>
+        <div class="grid">
+            <div class="card">
+                <h3>Header Offsets</h3>
+                <p><b>Problem:</b> Our synthetic Scapy attacks were missing 34 bytes of raw Ethernet headers compared to the original dataset. The AI was rejecting them.<br><br><b>Fix:</b> We mathematically offset our live payload generation to perfectly mirror the Layer-2 physical captures of the UNSW-NB15 dataset.</p>
+            </div>
+            <div class="card">
+                <h3>Dense Overlap</h3>
+                <p><b>Problem:</b> In the raw data, "Backdoors" and "DoS" attacks look mathematically identical, causing the AI to confuse them.<br><br><b>Fix:</b> We abandoned the "median" averages and targeted the specific, distinct mathematical "mean" of the Backdoor attacks, carving out a clean boundary the AI could easily spot.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 5: GENERATIVE AI SWARM -->
+    <div class="slide">
+        <h2>Agentic AI Swarm (LangGraph)</h2>
+        <p>When the ML model triggers, the flow metadata is handed off to a multi-agent AI pipeline powered by <b>Gemini 2.5 Flash</b>. The agents reason sequentially about the threat.</p>
+        <div class="grid">
+            <div class="card">
+                <h3>1. Triage Agent</h3>
+                <p>Evaluates the raw network statistics and the ML prediction. Determines the immediate severity of the flow.</p>
+            </div>
+            <div class="card">
+                <h3>2. Context Agent</h3>
+                <p>Cross-references the Destination IP against our mock Asset Registry to determine the business impact (e.g., hitting an HR database vs a DMZ honeypot).</p>
+            </div>
+            <div class="card">
+                <h3>3. Response Agent</h3>
+                <p>Weighs the severity against the context and makes a definitive Go/No-Go decision on mitigation.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 6: AUTONOMOUS MITIGATION -->
+    <div class="slide">
+        <h2>Autonomous Mitigation</h2>
+        <p>The AI isn't just an alert generator—it has teeth. The Response Agent is equipped with a Python <code>@tool</code> that allows it to physically alter the network state.</p>
+        <div class="card" style="width: 100%; max-width: 800px; margin-top: 1rem;">
+            <h3>The Block Execution</h3>
+            <p>If the AI decides the threat is critical, it dynamically invokes the mitigation tool, dropping the attacker's connection at the firewall level:</p>
+            <div class="code-block">
+                os.system(f"iptables -A FORWARD -s {attacker_ip} -j DROP")
+            </div>
+            <br>
+            <p>We also implemented a <b>global cooldown debounce</b> and an <b>in-memory IP blacklist</b> to prevent volumetric DDoS attacks from repeatedly triggering expensive LLM token usage.</p>
+        </div>
+    </div>
+
+    <!-- SLIDE 7: DASHBOARD UI -->
+    <div class="slide">
+        <h2>Real-Time Dashboard UI</h2>
+        <p>A completely stateless React/TypeScript frontend that provides a God's-eye view of the Cyber Range.</p>
+        <div class="grid">
+            <div class="card">
+                <h3>Glassmorphism Design</h3>
+                <p>Built with deep slate backgrounds, neon cyan/purple accents, and frosted glass panels for a premium Cyber Aesthetic.</p>
+            </div>
+            <div class="card">
+                <h3>State Polling</h3>
+                <p>Uses aggressive asynchronous API polling (every 1.5s) to sync network charts, LangGraph pipeline status, and active mitigations.</p>
+            </div>
+            <div class="card">
+                <h3>Attacker Simulator</h3>
+                <p>Provides interactive controls to spawn mathematically-forged Scapy attacks, including randomized IP spoofing algorithms.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 8: END -->
+    <div class="slide">
+        <h1>Milestone Complete</h1>
+        <p>The Autonomous SOC Brain is fully operational.</p>
+        <div style="margin-top: 2rem;">
+            <div class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">Ready for Deployment</div>
+        </div>
+    </div>
+
+</body>
+</html>

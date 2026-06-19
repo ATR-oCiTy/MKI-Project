@@ -1,0 +1,1 @@
+{"10.5.1.20": {"hostname": "dmz-web", "criticality": "Medium", "zone": "DMZ"}, "10.5.2.20": {"hostname": "internal-db", "criticality": "Critical", "zone": "Internal Secure"}, "10.5.2.30": {"hostname": "hr-portal", "criticality": "High", "zone": "Internal Secure"}}

@@ -1,0 +1,130 @@
+# docker-compose.yml
+# Architecture: Autonomous SOC Containerized Cyber Range
+
+networks:
+  dmz_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.1.0/24
+  internal_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.2.0/24
+
+services:
+  # ---------------------------------------------------------
+  # 1. Attacker Node (Simulates external threat actor)
+  # ---------------------------------------------------------
+  attacker-node:
+    image: alpine:3.18
+    container_name: attacker-node
+    networks:
+      dmz_net:
+        ipv4_address: 10.5.1.10
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./attacker/attacker_api.py:/opt/attacker_api.py
+      - ./attacker/pcaps:/opt/pcaps
+    # The container installs offensive tools and Flask for the Attack API
+    command: >
+      sh -c "apk update && apk add curl nmap iproute2 python3 py3-pip &&
+      apk add hping3 --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/ &&
+      pip3 install flask scapy --break-system-packages &&
+      ip route add 10.5.2.0/24 via 10.5.1.254 &&
+      python3 /opt/attacker_api.py"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------
+  # 2. DMZ Web Server (Simulates a vulnerable external application)
+  # ---------------------------------------------------------
+  dmz-web:
+    image: nginx:alpine
+    container_name: dmz-web
+    networks:
+      dmz_net:
+        ipv4_address: 10.5.1.20
+    restart: unless-stopped
+
+  # ---------------------------------------------------------
+  # 3. Internal Database (Simulates a critical data store)
+  # ---------------------------------------------------------
+  internal-db:
+    image: redis:alpine
+    container_name: internal-db
+    networks:
+      internal_net:
+        ipv4_address: 10.5.2.20
+    cap_add:
+      - NET_ADMIN
+    # Establish the return route to the DMZ via the internal sensor interface.
+    command: >
+      sh -c "apk update && apk add iproute2 &&
+      ip route add 10.5.1.0/24 via 10.5.2.254 &&
+      redis-server"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------
+  # 4. Internal HR Portal (Simulates a secure internal application)
+  # ---------------------------------------------------------
+  hr-portal:
+    image: python:3.10-alpine
+    container_name: hr-portal
+    networks:
+      internal_net:
+        ipv4_address: 10.5.2.30
+    cap_add:
+      - NET_ADMIN
+    # Generate a mock HTML file, establish the return route, and serve over HTTP.
+    command: >
+      sh -c "apk update && apk add iproute2 &&
+      ip route add 10.5.1.0/24 via 10.5.2.254 &&
+      echo '<h1>Secure Internal HR Portal</h1>' > index.html &&
+      python -m http.server 80"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------
+  # 5. SOC Sensor Brain (Router, ML Inferencer, Agentic Orchestrator)
+  # ---------------------------------------------------------
+  soc-sensor-brain:
+    build:
+      context: ./soc_brain
+      dockerfile: Dockerfile.sensor
+    container_name: soc-sensor-brain
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.ip_forward=1
+    networks:
+      dmz_net:
+        ipv4_address: 10.5.1.254
+      internal_net:
+        ipv4_address: 10.5.2.254
+    # The .env file must contain the GEMINI_API_KEY for the CrewAI swarm.
+    env_file:
+      - .env
+    volumes:
+      - ./soc_brain:/opt/soc
+    working_dir: /opt/soc
+    ports:
+      - "5000:5000"
+    # Execute the machine learning training script, then start the unified runner.
+    command: sh -c "python train_model.py && python main_runner.py"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------
+  # 6. Dashboard UI (React TS Frontend)
+  # ---------------------------------------------------------
+  dashboard-ui:
+    build:
+      context: ./dashboard-ui
+      dockerfile: Dockerfile.dashboard
+    container_name: dashboard-ui
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    restart: unless-stopped

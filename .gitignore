@@ -1,0 +1,32 @@
+# Environment & Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# ML Artifacts
+*.pkl
+soc_brain/rf_model.pkl
+
+# Datasets (too large for git)
+soc_brain/UNSW_NB15_training-set.csv
+*.csv
+*.pcap
+system.log*
+
+# Logs
+soc_brain/system.log
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (dashboard-ui has its own .gitignore too)
+node_modules/
