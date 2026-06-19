@@ -30,3 +30,6 @@ Thumbs.db
 
 # Node (dashboard-ui has its own .gitignore too)
 node_modules/
+
+# Internal Team Notes (Do not commit)
+team_internal_notes/
