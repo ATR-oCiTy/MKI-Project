@@ -25,16 +25,20 @@ The SOC Brain operates on a highly optimized three-stage pipeline:
 The `live_sensor.py` script binds directly to the container's network interfaces (`eth0`, `eth1`) at Layer 2. Using `NFStream`, it continuously captures live network traffic, groups raw packets into bidirectional flows, and calculates 20+ statistical features (e.g., bytes, duration, packet inter-arrival times) on the fly.
 
 ### Stage 2: Machine Learning Gatekeeper
-Instead of relying on rigid static signatures, every network flow is passed through a pre-trained **Random Forest Classifier**. 
-- **Binary Classification**: Determines if the flow is `Normal` or an `Anomaly`.
-- **Multi-Class Classification**: If anomalous, categorizes the attack (e.g., `DoS`, `Port Sweep`, `Exploit`).
-This stage filters out 99% of background noise, ensuring the LLM is only invoked for genuine threats.
+Instead of relying on rigid static signatures, every network flow is passed through a pre-trained **Random Forest Classifier**.
+- **Binary Classification**: Determines if the flow is `Normal` or an `Anomaly` (confidence threshold 0.55).
+- **Multi-Class Classification**: If anomalous, categorizes the attack (e.g., `DoS`, `Reconnaissance`, `Exploits`).
+- **Port-scan correlator**: A second, independent path that catches real multi-port scans by looking *across* flows (5+ distinct destination ports from one source within 5 seconds) rather than within a single flow - a genuine port scan looks identical to an ordinary short connection one flow at a time, so this pattern can't be caught by the classifiers above alone.
+
+This stage filters out the overwhelming majority of background noise, ensuring the LLM is only invoked for genuine threats.
 
 ### Stage 3: Agentic Orchestration (LangGraph)
-When an anomaly is confidently detected, the flow metadata is passed to `orchestrator.py`. A multi-agent LangGraph swarm (powered by Gemini) takes over:
-1. **Triage Agent**: Analyzes the flow parameters and determines the severity.
-2. **Context Agent**: Evaluates the target asset (e.g., HR Portal vs Database) to assess business impact.
-3. **Response Agent**: Decides whether to deploy an active mitigation. If authorized, it executes physical `iptables` DROP rules directly on the Linux kernel to permanently sever the attacker's connection.
+When an anomaly is confidently detected, the flow metadata is passed to `orchestrator.py`. A three-node LangGraph pipeline (powered by Gemini) takes over:
+1. **Triage**: Analyzes the flow parameters and determines the severity.
+2. **Context**: Evaluates the target asset (e.g., HR Portal vs Database) to assess business impact.
+3. **Response**: Decides whether to deploy an active mitigation. If authorized (and not deferred - see below), it executes physical `iptables` DROP rules directly on the Linux kernel to sever the attacker's connection.
+
+**Blocks are not permanent.** Every automated block carries a TTL (one hour by default) and is auto-reviewed by a background sweep, and attacks against `Critical`/`High` criticality assets are queued for a human to approve or dismiss rather than auto-resolving. Combined with a protected allow-list (the sensor's own addresses and every registered asset can never be blocked) and a rolling rate limit on blocks per minute, these guardrails are what keep the system safely autonomous rather than unconditionally autonomous - see [`triage_resolution_flows.md`](triage_resolution_flows.md) for the full decision tree.
 
 ## System Components
 

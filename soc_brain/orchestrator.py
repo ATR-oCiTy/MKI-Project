@@ -7,10 +7,9 @@ import logging
 import threading
 from typing import TypedDict, Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import create_react_agent
 from event_store import store
 
 # Configure logging
@@ -20,8 +19,13 @@ logger = logging.getLogger('Orchestrator')
 LLM_DRY_RUN = os.getenv("LLM_DRY_RUN", "True").lower() in ("true", "1", "yes", "t")
 
 # Reuse a single client instead of constructing one per node call, and bound
-# every call with a timeout/retry policy so a hung Gemini request can't stall
-# a detection thread forever.
+# every call with a timeout so a hung Gemini request can't stall a detection
+# thread forever. max_retries=0 is deliberate: the free tier's 429 quota
+# errors were previously auto-retried by the client, which just burns more of
+# the same rate-limit budget re-attempting a call that's going to fail again.
+# Every node already has its own try/except with a graceful canned fallback,
+# so a single fast failure (quota or otherwise) degrades cleanly rather than
+# needing the client to retry internally.
 _llm_singleton = None
 
 def get_llm():
@@ -31,7 +35,7 @@ def get_llm():
             model="gemini-2.5-flash",
             temperature=0,
             timeout=15,
-            max_retries=2,
+            max_retries=0,
         )
     return _llm_singleton
 
@@ -314,18 +318,33 @@ def context_node(state: AgentState):
         context = lookup_asset(target_ip)
         context_content = f"**[DRY RUN] Context Report:**\nTarget IP: {target_ip}\nRegistry Data: {context}\n- **Assessment:** Business impact depends on the asset's registered criticality above; see the Response stage for the containment decision."
     else:
-        # Let the agent decide to call the registry lookup tool itself, rather
+        # Let the model decide to call the registry lookup tool itself, rather
         # than Python fetching it beforehand - and keep the prompt neutral so
-        # it doesn't presuppose containment is the right outcome.
-        agent = create_react_agent(get_llm(), tools=[lookup_asset_tool])
+        # it doesn't presuppose containment is the right outcome. This uses a
+        # single bind_tools() call rather than create_react_agent's automatic
+        # two-turn loop (one call to request the tool, a second to narrate the
+        # result) - each real detection was costing up to 5 Gemini calls across
+        # all three nodes, which burns through the free tier's 5-requests/minute
+        # cap within a single detection. We execute the tool ourselves and
+        # format its result directly instead of paying for a second round-trip
+        # just to have the model re-word it.
+        llm_with_tool = get_llm().bind_tools([lookup_asset_tool])
         prompt = (
             f"A potential attack is targeting IP {target_ip}. Use lookup_asset_tool to check the asset registry, "
             f"then provide a short markdown context report assessing business impact based on what you find. "
             f"Do not conclude whether to contain the traffic - that decision is made in a later step."
         )
         try:
-            result = agent.invoke({"messages": [HumanMessage(content=prompt)]})
-            context_content = _extract_text(result["messages"][-1].content)
+            ai_msg = llm_with_tool.invoke([HumanMessage(content=prompt)])
+            if ai_msg.tool_calls:
+                tool_output = lookup_asset_tool.invoke(ai_msg.tool_calls[0]['args'])
+                reasoning = _extract_text(ai_msg.content).strip()
+                context_content = (
+                    f"**Context Report:**\n{tool_output}\n\n{reasoning}" if reasoning
+                    else f"**Context Report:**\n{tool_output}"
+                )
+            else:
+                context_content = _extract_text(ai_msg.content)
         except Exception as e:
             logger.error(f"LLM Error in Context: {e}")
             context_content = f"**[LLM ERROR] Context Report:**\nFallback triggered. Recommend manual review of target {target_ip}."
@@ -354,7 +373,12 @@ def response_node(state: AgentState):
         # make_block_ip_tool() so it closes over this alert's context (the
         # model itself only supplies a bare source_ip argument), and applies
         # the allow-list/rate-limit/approval gates through _decide_and_contain.
-        agent = create_react_agent(get_llm(), tools=[make_block_ip_tool(alert, state.get('triage_report'), state.get('context_report'))])
+        # A single bind_tools() call replaces create_react_agent's automatic
+        # second round-trip: when the tool IS called we only ever use its own
+        # return value below, never the agent's follow-up narration, so that
+        # second call was pure wasted quota - removing it costs nothing.
+        block_tool = make_block_ip_tool(alert, state.get('triage_report'), state.get('context_report'))
+        llm_with_tool = get_llm().bind_tools([block_tool])
         prompt = (
             f"Triage report:\n{state['triage_report']}\n\n"
             f"Context report:\n{state['context_report']}\n\n"
@@ -362,18 +386,14 @@ def response_node(state: AgentState):
             f"with source_ip='{source_ip}'. If not warranted, do not call any tool, and explain why in one sentence."
         )
         try:
-            agent_result = agent.invoke({"messages": [HumanMessage(content=prompt)]})
-            messages = agent_result["messages"]
-            tool_result = next(
-                (m.content for m in messages if isinstance(m, ToolMessage) and m.name == "block_ip_tool"),
-                None,
-            )
-            if tool_result is not None:
+            ai_msg = llm_with_tool.invoke([HumanMessage(content=prompt)])
+            if ai_msg.tool_calls:
+                tool_output = block_tool.invoke(ai_msg.tool_calls[0]['args'])
                 if not requires_approval:
                     store.add_flow_event({"step": "Response", "status": "Executing", "message": "Model invoked block_ip_tool. Deploying iptables DROP rule."})
-                result = _extract_text(tool_result)
+                result = _extract_text(tool_output)
             else:
-                result = _extract_text(messages[-1].content)
+                result = _extract_text(ai_msg.content)
                 store.add_flow_event({"step": "Response", "status": "Bypassed", "message": result})
         except Exception as e:
             logger.error(f"LLM Error in Response: {e}")
