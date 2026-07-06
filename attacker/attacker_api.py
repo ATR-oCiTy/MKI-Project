@@ -92,28 +92,86 @@ def generate_flow(attack_type, target_ip, base_source_ip="10.5.1.10", randomize_
         
     logger.info(f"Attack {attack_type} thread terminated.")
 
+# Attack types that have a validated real-tool implementation below. Anything
+# else falls back to the synthetic Scapy engine even if real_tools is requested.
+REAL_TOOL_SUPPORTED = {'dos', 'port_sweep'}
+
+def generate_real_dos(target_ip, source_ip="10.5.1.10", randomize_source=False):
+    """Real hping3 traffic instead of hand-crafted Scapy packets. Uses bounded
+    bursts (-c 500) rather than --flood: an unbounded flood was observed to
+    never surface as a completed NFStream flow at all (untested how long it
+    would eventually take, if ever, under this environment's resource limits),
+    while a few-hundred-packet burst reliably closes within NFStream's active
+    timeout and gets classified as an attack with >90% confidence."""
+    logger.info(f"Initiating REAL hping3 DoS simulation loop against {target_ip}...")
+    while active_attacks.get('dos', False):
+        src = f"10.5.1.{random.randint(2, 254)}" if randomize_source else source_ip
+        cmd = ["hping3", "--udp", "-p", "80", "-c", "500", "-i", "u2000"]
+        if src != "10.5.1.10":
+            cmd += ["--spoof", src]
+        cmd.append(target_ip)
+        try:
+            subprocess.run(cmd, capture_output=True, timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        if not active_attacks.get('dos', False):
+            break
+        time.sleep(1.0)
+    logger.info("Real DoS attack thread terminated.")
+
+def generate_real_port_sweep(target_ip):
+    """Real nmap scan. A genuine multi-port sweep is many separate 1-2 packet
+    flows that look statistically identical to short ordinary connections to
+    a per-flow classifier, so this relies on the SOC sensor's cross-flow
+    burst-correlation detector (live_sensor.py) rather than the RF models to
+    get flagged. Source-IP spoofing isn't supported here - nmap's spoofing
+    needs raw ARP/interface tricks and won't receive replies - so this always
+    scans from the attacker-node's real address."""
+    logger.info(f"Initiating REAL nmap port sweep loop against {target_ip}...")
+    while active_attacks.get('port_sweep', False):
+        try:
+            subprocess.run(["nmap", "-sT", "-p", "1-100", target_ip], capture_output=True, timeout=10)
+        except subprocess.TimeoutExpired:
+            pass
+        if not active_attacks.get('port_sweep', False):
+            break
+        time.sleep(2.0)
+    logger.info("Real port sweep thread terminated.")
+
 @app.route('/attack', methods=['POST'])
 def trigger_attack():
     data = request.get_json()
     if not data or 'target' not in data:
         return jsonify({"error": "Missing target"}), 400
-        
+
     target_ip = data['target']
     if not validate_ip(target_ip):
         return jsonify({"error": "Invalid IP address format"}), 400
     attack_type = data.get('type', 'dos')
     source_ip = data.get('source_ip', '10.5.1.10')
     randomize_source = data.get('randomize_ip', False)
-    
+    use_real_tools = bool(data.get('real_tools', False))
+
     if attack_type in ['dos', 'port_sweep', 'exploits', 'fuzzers', 'backdoors']:
         if active_attacks.get(attack_type, False):
             return jsonify({"status": f"{attack_type} is already running."})
-            
-        logger.info(f"Initiating {attack_type} simulation against {target_ip} (Source: {source_ip}, Randomize: {randomize_source})")
+
         active_attacks[attack_type] = True
-        threading.Thread(target=generate_flow, args=(attack_type, target_ip, source_ip, randomize_source), daemon=True).start()
-        return jsonify({"status": f"{attack_type} simulation initiated against HR Portal."})
-        
+        real_mode_active = use_real_tools and attack_type in REAL_TOOL_SUPPORTED
+        tool_label = " [REAL TOOL]" if real_mode_active else ""
+        logger.info(f"Initiating {attack_type} simulation against {target_ip} (Source: {source_ip}, Randomize: {randomize_source}){tool_label}")
+
+        if real_mode_active and attack_type == 'dos':
+            threading.Thread(target=generate_real_dos, args=(target_ip, source_ip, randomize_source), daemon=True).start()
+        elif real_mode_active and attack_type == 'port_sweep':
+            threading.Thread(target=generate_real_port_sweep, args=(target_ip,), daemon=True).start()
+        else:
+            if use_real_tools:
+                logger.info(f"Real-tool mode requested for {attack_type}, but only {sorted(REAL_TOOL_SUPPORTED)} have a real-tool implementation - falling back to the synthetic engine.")
+            threading.Thread(target=generate_flow, args=(attack_type, target_ip, source_ip, randomize_source), daemon=True).start()
+
+        return jsonify({"status": f"{attack_type} simulation initiated against HR Portal.{tool_label}"})
+
     return jsonify({"error": "Unknown attack type"}), 400
 
 @app.route('/stop_attack', methods=['POST'])

@@ -25,10 +25,10 @@ RUN apk update && apk add --no-cache \
     py3-numpy \
     py3-pandas
 
-# Upgrade pip and install the NFStream traffic analyzer, CrewAI orchestration frameworks, Langchain Google GenAI, and Flask.
-# The --break-system-packages flag is explicitly required in recent Python versions on Alpine 
+# Upgrade pip and install the NFStream traffic analyzer, LangGraph orchestration framework, Langchain Google GenAI, and Flask.
+# The --break-system-packages flag is explicitly required in recent Python versions on Alpine
 # when mixing apk and pip package installations, which is necessary to bridge the pre-compiled
-# SciKit-Learn package with the latest CrewAI libraries.
+# SciKit-Learn package with the latest LangGraph libraries.
 RUN pip3 install --no-cache-dir --upgrade pip && \
     pip3 install --no-cache-dir \
     nfstream \

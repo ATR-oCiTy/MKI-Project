@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RETM — StayWell Chatwoot · Ashley Thomas Roy</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,300&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d0d14;--surface:#13131f;--card:#191927;--card2:#1e1e2e;
+  --border:#252538;--border-b:#32324a;
+  --t1:#e8e8f4;--t2:#9898bb;--t3:#5c5c80;--t4:#32324a;
+  --accent:#00d4aa;--acc-d:rgba(0,212,170,.12);--acc-g:rgba(0,212,170,.22);
+  --danger:#ff4757;--dan-d:rgba(255,71,87,.12);
+  --warn:#ffa502;--war-d:rgba(255,165,2,.12);
+  --info:#7c83fd;--inf-d:rgba(124,131,253,.12);
+  --low:#4a4a6a;--low-d:rgba(74,74,106,.18);
+  --pink:#ff6b9d;--gold:#eccc68;
+  --fd:'Space Grotesk',system-ui,sans-serif;
+  --fm:'JetBrains Mono','Courier New',monospace;
+}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--t1);font-family:var(--fd);overflow:hidden;user-select:none}
+
+/* ── DOT GRID BG ── */
+.slide{
+  background-color:var(--bg);
+  background-image:radial-gradient(circle,rgba(0,212,170,.055) 1px,transparent 1px);
+  background-size:30px 30px;
+}
+
+/* ── DECK ENGINE ── */
+#deck{width:100vw;height:100vh;position:relative;overflow:hidden}
+.slide{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;
+  opacity:0;pointer-events:none;transform:translateX(48px);
+  transition:opacity .38s cubic-bezier(.4,0,.2,1),transform .38s cubic-bezier(.4,0,.2,1)}
+.slide.active{opacity:1;pointer-events:all;transform:translateX(0)}
+.slide.exit-left{opacity:0;transform:translateX(-48px);transition:opacity .28s ease,transform .28s ease}
+
+/* ── TOP BAR ── */
+#topbar{position:fixed;top:0;left:0;right:0;height:42px;
+  background:rgba(13,13,20,.96);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;z-index:200;backdrop-filter:blur(10px)}
+#tb-left{font-family:var(--fm);font-size:10px;color:var(--t3);letter-spacing:2px;text-transform:uppercase}
+#tb-left b{color:var(--accent);font-weight:500}
+#tb-right{font-family:var(--fm);font-size:10px;color:var(--t3)}
+#tb-right span{color:var(--t2)}
+#progress{position:absolute;bottom:0;left:0;height:2px;background:var(--accent);transition:width .38s ease}
+
+/* ── NAV ── */
+#nav{position:fixed;bottom:50px;right:24px;display:flex;gap:8px;z-index:200}
+.nb{width:34px;height:34px;border-radius:50%;background:var(--card2);border:1px solid var(--border);
+  color:var(--t3);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .2s}
+.nb:hover{background:var(--acc-d);border-color:var(--accent);color:var(--accent)}
+#slide-hint{position:fixed;bottom:56px;left:50%;transform:translateX(-50%);
+  font-family:var(--fm);font-size:9px;color:var(--t4);letter-spacing:1.5px;
+  text-transform:uppercase;z-index:200}
+
+/* ── TICKER ── */
+#ticker{position:fixed;bottom:0;left:0;right:0;height:34px;
+  background:rgba(13,13,20,.98);border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 18px;gap:5px;z-index:150;
+  font-family:var(--fm);font-size:9px;
+  transition:opacity .3s}
+.tick-lbl{color:var(--t4);letter-spacing:2px;text-transform:uppercase;
+  margin-right:6px;padding-right:8px;border-right:1px solid var(--border);white-space:nowrap}
+.ti{padding:2px 7px;border-radius:3px;font-weight:600;letter-spacing:.3px}
+.ti-h{background:var(--dan-d);color:var(--danger)}
+.ti-m{background:var(--war-d);color:var(--warn)}
+.ti-l{background:var(--low-d);color:var(--t3)}
+.ti-a{background:var(--low-d);color:var(--t4);text-decoration:line-through}
+
+/* ── INNER ── */
+.si{flex:1;display:flex;flex-direction:column;padding:58px 44px 46px;
+  max-width:1380px;margin:0 auto;width:100%}
+.s-eye{font-family:var(--fm);font-size:9px;letter-spacing:3px;color:var(--accent);
+  text-transform:uppercase;margin-bottom:5px}
+.s-title{font-size:24px;font-weight:600;line-height:1.2;margin-bottom:4px}
+.s-sub{font-size:13px;color:var(--t2);margin-bottom:20px;font-weight:400}
+.s-div{height:1px;background:var(--border);margin:14px 0}
+
+/* ── CARDS ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 18px}
+.card.al{border-left:3px solid var(--accent)}
+.card.dl{border-left:3px solid var(--danger)}
+.card.wl{border-left:3px solid var(--warn)}
+.card.il{border-left:3px solid var(--info)}
+.clbl{font-family:var(--fm);font-size:8px;letter-spacing:2px;color:var(--t3);text-transform:uppercase;margin-bottom:5px}
+.cval{font-size:30px;font-weight:700;line-height:1}
+.cval.ac{color:var(--accent)}.cval.da{color:var(--danger)}.cval.wa{color:var(--warn)}.cval.in{color:var(--info)}
+.cdesc{font-size:11px;color:var(--t2);margin-top:4px;line-height:1.4}
+
+/* ── BADGES ── */
+.badge{display:inline-block;font-family:var(--fm);font-size:8px;font-weight:700;
+  letter-spacing:.8px;padding:2px 7px;border-radius:3px;text-transform:uppercase;white-space:nowrap}
+.bh{background:var(--dan-d);color:var(--danger)}
+.bm{background:var(--war-d);color:var(--warn)}
+.bl{background:var(--low-d);color:var(--t3)}
+.bvh{background:rgba(255,71,87,.2);color:var(--danger)}
+.bbh{background:var(--war-d);color:var(--warn)}
+.bac{background:var(--acc-d);color:var(--accent)}
+.bin{background:var(--inf-d);color:var(--info)}
+.bacc{background:var(--low-d);color:var(--t3)}
+.bmit{background:var(--acc-d);color:var(--accent)}
+
+/* ── TABLES ── */
+.risk-table {width: 100%; border-collapse: collapse; margin-top: 10px; background: var(--surface); border-radius: 8px; overflow: hidden; border: 1px solid var(--border);}
+.risk-table th {background: var(--card2); color: var(--t3); font-family: var(--fm); font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border);}
+.risk-table td {padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--t1);}
+.risk-table tr:last-child td {border-bottom: none;}
+.risk-table tr:hover {background: var(--card);}
+.rt-code {font-family: var(--fm); font-weight: 700; font-size: 10px; color: var(--accent);}
+.rt-desc {color: var(--t2); line-height: 1.4;}
+.rt-val {font-family: var(--fm); font-size: 10px;}
+
+/* ── GRIDS ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.g6{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.gca{display:grid;grid-template-columns:280px 1fr;gap:16px}
+.gcb{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:start}
+
+/* ── STRIDE COLORS ── */
+.sc-s{border-color:var(--danger)!important;color:var(--danger)}
+.sc-t{border-color:var(--warn)!important;color:var(--warn)}
+.sc-r{border-color:var(--info)!important;color:var(--info)}
+.sc-i{border-color:var(--accent)!important;color:var(--accent)}
+.sc-d{border-color:var(--pink)!important;color:var(--pink)}
+.sc-e{border-color:var(--gold)!important;color:var(--gold)}
+
+/* ── ARCH ZONES ── */
+.azone{border:1px solid var(--border);border-radius:8px;padding:12px 14px;position:relative;margin-bottom:12px}
+.azone-lbl{position:absolute;top:-9px;left:10px;font-family:var(--fm);font-size:8px;
+  letter-spacing:2px;text-transform:uppercase;background:var(--bg);padding:0 6px}
+.azone.az-ext{border-color:rgba(255,71,87,.35)}.azone.az-ext .azone-lbl{color:var(--danger)}
+.azone.az-dmz{border-color:rgba(255,165,2,.35)}.azone.az-dmz .azone-lbl{color:var(--warn)}
+.azone.az-int{border-color:rgba(0,212,170,.35)}.azone.az-int .azone-lbl{color:var(--accent)}
+.azone.az-flow{border-color:var(--border)}.azone.az-flow .azone-lbl{color:var(--t3)}
+.el-chip{display:inline-block;font-family:var(--fm);font-size:9px;padding:3px 8px;
+  border-radius:4px;margin:2px;border:1px solid var(--border);background:var(--surface)}
+.el-ext{border-color:rgba(255,71,87,.3)!important;color:#ff8a94}
+.el-proc{border-color:rgba(255,165,2,.3)!important;color:#ffba5c}
+.el-store{border-color:rgba(0,212,170,.3)!important;color:var(--accent)}
+.el-flow{border-color:var(--border)!important;color:var(--t3)}
+
+/* ── STRIDE PANELS ── */
+.sp{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:13px 15px}
+.sp-hd{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.sp-letter{width:30px;height:30px;border-radius:5px;display:flex;align-items:center;
+  justify-content:center;font-family:var(--fm);font-size:13px;font-weight:700;
+  border:1px solid;flex-shrink:0}
+.sp-name{font-size:12px;font-weight:600}
+.sp-count{margin-left:auto;font-family:var(--fm);font-size:20px;font-weight:700}
+.sp-name-full{font-size:10px;color:var(--t2);margin-bottom:6px}
+.tr-chip{font-family:var(--fm);font-size:8px;padding:2px 6px;border-radius:3px;
+  background:var(--surface);border:1px solid var(--border);color:var(--t3);display:inline-block;margin:2px}
+.tr-chip.ch{border-color:rgba(255,71,87,.35);color:var(--danger)}
+.tr-chip.cm{border-color:rgba(255,165,2,.35);color:var(--warn)}
+.tr-chip.cl{border-color:var(--border);color:var(--t4)}
+
+/* ── THREAT CARDS ── */
+.tc{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:11px 13px;
+  display:flex;flex-direction:column;gap:5px}
+.tc-top{display:flex;align-items:center;justify-content:space-between}
+.tc-code{font-family:var(--fm);font-size:11px;font-weight:700}
+.tc-cat{font-size:9px;color:var(--t3);font-family:var(--fm)}
+.tc-name{font-size:10.5px;color:var(--t2);line-height:1.35}
+.tc-el{font-family:var(--fm);font-size:8px;color:var(--t4)}
+
+/* ── SR GROUPS ── */
+.srg{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:13px 15px}
+.srg-hd{font-size:10px;font-weight:600;color:var(--t2);letter-spacing:1px;text-transform:uppercase;
+  margin-bottom:9px;display:flex;align-items:center;gap:7px}
+.srg-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.sr-row{display:flex;align-items:flex-start;gap:9px;padding:5px 0;border-bottom:1px solid var(--border)}
+.sr-row:last-child{border-bottom:none}
+.sr-code{font-family:var(--fm);font-size:9.5px;color:var(--accent);width:30px;flex-shrink:0;padding-top:1px;font-weight:500}
+.sr-txt{font-size:10.5px;color:var(--t2);line-height:1.35;flex:1}
+
+/* ── DS CARDS ── */
+.dsc{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:11px 13px;
+  display:flex;flex-direction:column;gap:5px}
+.dsc-top{display:flex;align-items:center;justify-content:space-between}
+.dsc-code{font-family:var(--fm);font-size:11px;font-weight:700}
+.dsc-txt{font-size:10px;color:var(--t2);line-height:1.35}
+.dsc-att{font-family:var(--fm);font-size:8px;color:var(--t4);margin-top:2px}
+
+/* ── TITLE SLIDE ── */
+.ts-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;gap:0;text-align:center}
+.stride-row{display:flex;gap:7px;justify-content:center;margin-bottom:30px}
+.sl{width:52px;height:52px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--fm);font-size:20px;font-weight:700;border:1px solid;
+  opacity:0;transform:translateY(10px);animation:lIn .4s ease forwards}
+@keyframes lIn{to{opacity:1;transform:translateY(0)}}
+.ts-main{font-size:38px;font-weight:700;line-height:1.1;margin-bottom:10px;
+  background:linear-gradient(130deg,#fff 10%,var(--accent) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.ts-sub{font-size:15px;color:var(--t2);margin-bottom:6px}
+.ts-co{font-family:var(--fm);font-size:12px;color:var(--accent);letter-spacing:2px}
+.ts-meta{margin-top:26px;display:flex;gap:28px;justify-content:center}
+.ts-mi{font-family:var(--fm);font-size:10.5px;color:var(--t3)}
+.ts-mi span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:var(--t4);margin-bottom:2px}
+.ts-line{width:60px;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);margin:20px auto}
+
+/* ── SH CARDS ── */
+.sh-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:13px 15px}
+.sh-role{font-family:var(--fm);font-size:8px;letter-spacing:2px;color:var(--t3);text-transform:uppercase;margin-bottom:4px}
+.sh-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.sh-pname{font-size:10.5px;color:var(--accent);font-family:var(--fm);margin-bottom:6px}
+.sh-sec{font-size:10px;color:var(--t2);line-height:1.35}
+.sh-divl{width:28px;height:2px;border-radius:1px;margin:6px 0}
+
+/* ── ASSET CARDS ── */
+.as-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:13px 15px}
+.as-code{font-family:var(--fm);font-size:9px;color:var(--t3);letter-spacing:1px;margin-bottom:3px}
+.as-name{font-size:13px;font-weight:600;margin-bottom:4px}
+.as-detail{font-size:10px;color:var(--t2);margin-bottom:7px;line-height:1.35}
+.as-row{display:flex;align-items:center;justify-content:space-between;margin-top:auto}
+.obj-badges{display:flex;gap:4px}
+.obj-b{font-family:var(--fm);font-size:8px;padding:2px 6px;border-radius:3px;font-weight:600}
+.obj-c{background:rgba(255,71,87,.1);color:var(--danger)}
+.obj-i{background:rgba(255,165,2,.1);color:var(--warn)}
+.obj-a{background:rgba(0,212,170,.1);color:var(--accent)}
+
+/* ── CONCLUSION ── */
+.gdpr-box{background:linear-gradient(135deg,rgba(0,212,170,.08),rgba(124,131,253,.08));
+  border:1px solid rgba(0,212,170,.3);border-radius:10px;padding:20px 24px}
+.gdpr-art{font-family:var(--fm);font-size:10px;color:var(--accent);letter-spacing:2px;margin-bottom:6px}
+.gdpr-title{font-size:16px;font-weight:600;margin-bottom:6px}
+.gdpr-body{font-size:11.5px;color:var(--t2);line-height:1.6}
+.finding{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.finding:last-child{border-bottom:none}
+.finding-num{font-family:var(--fm);font-size:20px;font-weight:700;color:var(--accent);opacity:.4;flex-shrink:0;width:28px}
+.finding-text{font-size:11.5px;color:var(--t2);line-height:1.5}
+.finding-text b{color:var(--t1);font-weight:600}
+
+/* ── DECISION VISUAL ── */
+.dec-donut{display:flex;flex-direction:column;align-items:center;gap:4px}
+.donut-outer{width:130px;height:130px;border-radius:50%;
+  border:8px solid var(--accent);display:flex;flex-direction:column;
+  align-items:center;justify-content:center}
+.donut-val{font-size:34px;font-weight:700;color:var(--accent);line-height:1}
+.donut-lbl{font-family:var(--fm);font-size:8px;color:var(--t2);text-transform:uppercase;letter-spacing:1px}
+.acc-box{width:130px;height:130px;border-radius:50%;border:4px solid var(--t4);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(74,74,106,.1)}
+.acc-val{font-size:34px;font-weight:700;color:var(--t3);line-height:1}
+.acc-lbl{font-family:var(--fm);font-size:8px;color:var(--t4);text-transform:uppercase;letter-spacing:1px}
+.tr-decision-list{display:flex;flex-direction:column;gap:4px}
+.trd{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;background:var(--surface)}
+.trd-code{font-family:var(--fm);font-size:10px;font-weight:700;width:32px;flex-shrink:0}
+.trd-name{font-size:10px;color:var(--t2);flex:1}
+
+/* stories */
+.story-item{padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:flex-start}
+.story-item:last-child{border-bottom:none}
+.story-code{font-family:var(--fm);font-size:9px;font-weight:700;width:36px;flex-shrink:0;padding-top:1px}
+.story-title{font-size:10.5px;color:var(--t2);line-height:1.35}
+.story-persona{font-family:var(--fm);font-size:8px;color:var(--t4);margin-top:2px}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ TOP BAR ══════════════════════ -->
+<div id="topbar">
+  <div id="tb-left">RETM &nbsp;·&nbsp; <b>StayWell Chatwoot Integration</b> &nbsp;·&nbsp; Ashley Thomas Roy</div>
+  <div id="tb-right"><span id="cur-slide">1</span> / <span id="tot-slides">15</span></div>
+  <div id="progress"></div>
+</div>
+
+<!-- ══════════════════════ THREAT TICKER ══════════════════════ -->
+<div id="ticker">
+  <span class="tick-lbl">Threat Monitor</span>
+  <span class="ti ti-h">TR01 · High</span>
+  <span class="ti ti-h">TR02 · High</span>
+  <span class="ti ti-h">TR03 · High</span>
+  <span class="ti ti-m">TR04 · Med</span>
+  <span class="ti ti-h">TR05 · High</span>
+  <span class="ti ti-h">TR06 · High</span>
+  <span class="ti ti-a">TR07 · Accept</span>
+  <span class="ti ti-m">TR08 · Med</span>
+  <span class="ti ti-h">TR09 · High</span>
+  <span class="ti ti-h">TR10 · High</span>
+</div>
+
+<!-- ══════════════════════ NAV ══════════════════════ -->
+<div id="nav">
+  <button class="nb" id="prev-btn" onclick="go(-1)">&#8592;</button>
+  <button class="nb" id="next-btn" onclick="go(1)">&#8594;</button>
+</div>
+<div id="slide-hint">← → arrow keys to navigate</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 1 — TITLE
+══════════════════════════════════════════════════════════ -->
+<div class="slide active" id="s1" data-ticker="0">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%">
+    <div class="stride-row">
+      <div class="sl sc-s" style="animation-delay:.05s">S</div>
+      <div class="sl sc-t" style="animation-delay:.15s">T</div>
+      <div class="sl sc-r" style="animation-delay:.25s">R</div>
+      <div class="sl sc-i" style="animation-delay:.35s">I</div>
+      <div class="sl sc-d" style="animation-delay:.45s">D</div>
+      <div class="sl sc-e" style="animation-delay:.55s">E</div>
+    </div>
+    <div class="ts-main">Requirements Engineering<br>& Threat Modelling</div>
+    <div class="ts-sub">Security Analysis of the Chatwoot Omnichannel Integration</div>
+    <div class="ts-co">StayWell Corporate Housing Group GmbH</div>
+    <div class="ts-line"></div>
+    <div style="margin-top:22px;text-align:center">
+      <div style="font-size:13px;color:var(--t2);margin-bottom:14px;font-weight:500">Requirements Engineering &amp; Threat Modelling — Final Presentation</div>
+      <div style="display:flex;gap:28px;justify-content:center;flex-wrap:wrap">
+        <div class="ts-mi"><span>Author</span>Ashley Thomas Roy</div>
+        <div class="ts-mi"><span>Matriculation No.</span>200587</div>
+        <div class="ts-mi"><span>Semester</span>SoSe 2026</div>
+        <div class="ts-mi"><span>Module</span>RETM Final Assignment</div>
+        <div class="ts-mi"><span>Framework</span>STRIDE · OWASP · ASVS v5.0.0</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 2 — AT A GLANCE
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s2" data-ticker="0">
+  <div class="si">
+    <div class="s-eye">Project Overview</div>
+    <div class="s-title">Threat Model at a Glance</div>
+    <div class="s-sub">All key metrics from the completed RETM analysis</div>
+    <div class="g3" style="flex:1;align-content:start;gap:13px">
+      <div class="card al">
+        <div class="clbl">Stakeholders Identified</div>
+        <div class="cval ac">6</div>
+        <div class="cdesc">SH01–SH06 · Product Owner, DPO, Agent, IT Ops, Regional Director, Guest</div>
+      </div>
+      <div class="card al">
+        <div class="clbl">DFD Elements Modelled</div>
+        <div class="cval ac">13</div>
+        <div class="cdesc">3 External Entities · 2 Processes · 2 Data Stores · 6 Data Flows</div>
+      </div>
+      <div class="card al">
+        <div class="clbl">Data Assets Classified</div>
+        <div class="cval ac">6</div>
+        <div class="cdesc">AS01–AS06 · 3× Very High protection level · 3× High</div>
+      </div>
+      <div class="card wl">
+        <div class="clbl">Security Requirements</div>
+        <div class="cval wa">16</div>
+        <div class="cdesc">Derived from stakeholders, use cases, and system interfaces</div>
+      </div>
+      <div class="card dl">
+        <div class="clbl">Threats Identified</div>
+        <div class="cval da">10</div>
+        <div class="cdesc">7× High &nbsp;·&nbsp; 3× Medium (1 Accepted)</div>
+      </div>
+      <div class="card il">
+        <div class="clbl">Damage Scenarios</div>
+        <div class="cval in">8</div>
+        <div class="cdesc">DS01–DS08 · 5× Very High criticality scenarios</div>
+      </div>
+    </div>
+    <div class="s-div"></div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap">
+      <div style="font-family:var(--fm);font-size:10px;color:var(--t3)">
+        <span style="color:var(--accent);font-weight:600">9</span> Threats Mitigated
+      </div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--t3)">
+        <span style="color:var(--t3);font-weight:600">1</span> Threat Accepted (TR07 — External)
+      </div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--t3)">
+        <span style="color:var(--info);font-weight:600">5</span> Security User Stories
+      </div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--t3)">
+        <span style="color:var(--danger);font-weight:600">7</span> Evil User Stories
+      </div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--t3)">
+        <span style="color:var(--warn);font-weight:600">3</span> Use Cases
+      </div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--t3)">
+        <span style="color:var(--accent);font-weight:600">GDPR Art. 33</span> Primary Compliance Driver
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 3 — SYSTEM CONTEXT
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s3" data-ticker="0">
+  <div class="si">
+    <div class="s-eye">System Context</div>
+    <div class="s-title">Company Profile & Integration Scenario</div>
+    <div class="s-sub">What is StayWell deploying, and why does it matter for security?</div>
+    <div class="g2" style="flex:1;align-content:start">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card al">
+          <div class="clbl">Company</div>
+          <div style="font-size:17px;font-weight:600;margin-bottom:8px">StayWell Corporate Housing Group GmbH</div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--t3);width:80px">Headquarters</span>
+              <span style="font-size:11px;color:var(--t1)">Munich, Germany</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--t3);width:80px">Employees</span>
+              <span style="font-size:11px;color:var(--t1)">300 people</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--t3);width:80px">Turnover</span>
+              <span style="font-size:11px;color:var(--t1)">~€40 Million / year</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--t3);width:80px">Business</span>
+              <span style="font-size:11px;color:var(--t1)">Premium long-stay hotels & corporate apartments</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--t3);width:80px">Jurisdiction</span>
+              <span style="font-size:11px;color:var(--danger)">GDPR · Germany (LfDI / BfDI supervised)</span>
+            </div>
+          </div>
+        </div>
+        <div class="card wl">
+          <div class="clbl">Integration Goal</div>
+          <div style="font-size:12px;color:var(--t2);line-height:1.6">
+            StayWell is deploying <strong style="color:var(--t1)">Chatwoot</strong> — an open-source omnichannel customer engagement platform — to consolidate guest communications from <strong style="color:var(--warn)">public website chat</strong>, <strong style="color:var(--warn)">email</strong>, and <strong style="color:var(--warn)">WhatsApp Business API</strong> into a single dashboard used by Customer Care Agents.
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card">
+          <div class="clbl">Technology Stack</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border)">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--accent);width:30px">APP</span>
+              <span style="font-size:11px;font-weight:500">Chatwoot</span>
+              <span style="font-size:10px;color:var(--t3);margin-left:auto">Ruby on Rails · Open Source</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border)">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--warn);width:30px">DB</span>
+              <span style="font-size:11px;font-weight:500">PostgreSQL</span>
+              <span style="font-size:10px;color:var(--t3);margin-left:auto">Guest PII · Chat Logs · Credentials</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border)">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--danger);width:30px">Q</span>
+              <span style="font-size:11px;font-weight:500">Redis</span>
+              <span style="font-size:10px;color:var(--t3);margin-left:auto">Background job queue</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border)">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--info);width:30px">PRX</span>
+              <span style="font-size:11px;font-weight:500">Nginx</span>
+              <span style="font-size:10px;color:var(--t3);margin-left:auto">Reverse proxy · TLS termination</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border)">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--pink);width:30px">CTR</span>
+              <span style="font-size:11px;font-weight:500">Docker</span>
+              <span style="font-size:10px;color:var(--t3);margin-left:auto">Self-hosted containerised deployment</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border)">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--gold);width:30px">API</span>
+              <span style="font-size:11px;font-weight:500">WhatsApp Business API</span>
+              <span style="font-size:10px;color:var(--t3);margin-left:auto">External · Meta · HMAC-signed webhooks</span>
+            </div>
+          </div>
+        </div>
+        <div class="card dl" style="padding:12px 14px">
+          <div class="clbl">Why Self-Hosted?</div>
+          <div style="font-size:11px;color:var(--t2);line-height:1.5">Total control over personal data · GDPR compliance · No third-party data processor agreements required</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 4 — STAKEHOLDERS
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s4" data-ticker="0">
+  <div class="si">
+    <div class="s-eye">Stakeholder Analysis</div>
+    <div class="s-title">Who Has a Security Stake in This System?</div>
+    <div class="s-sub">Six stakeholders identified — each contributes at least one security requirement</div>
+    <div class="g3" style="flex:1;align-content:start">
+
+      <div class="sh-card">
+        <div class="sh-role">SH01 · Product Owner</div>
+        <div class="sh-name">Sarah</div>
+        <div class="sh-pname">Decision Maker</div>
+        <div class="sh-divl" style="background:var(--accent)"></div>
+        <div class="sh-sec">Understands functional requirements; limited security engineering knowledge. Drives SR10 — security event logging.</div>
+      </div>
+
+      <div class="sh-card">
+        <div class="sh-role">SH02 · Data Protection Officer</div>
+        <div class="sh-name">Karsten</div>
+        <div class="sh-pname" style="color:var(--danger)">Compliance Authority</div>
+        <div class="sh-divl" style="background:var(--danger)"></div>
+        <div class="sh-sec">Knows data protection law. Can mandate changes or halt deployment. Drives SR01 — data protection at rest &amp; in transit.</div>
+      </div>
+
+      <div class="sh-card">
+        <div class="sh-role">SH03 · Normal User</div>
+        <div class="sh-name">Customer Care Agent</div>
+        <div class="sh-pname" style="color:var(--warn)">Handles Guest PII Daily</div>
+        <div class="sh-divl" style="background:var(--warn)"></div>
+        <div class="sh-sec">Familiar with ticket workflows. Actions can expose or protect personal data. Drives SR02 — data protection in transit and at rest.</div>
+      </div>
+
+      <div class="sh-card">
+        <div class="sh-role">SH04 · Admin User</div>
+        <div class="sh-name">IT Ops Manager</div>
+        <div class="sh-pname" style="color:var(--info)">Infrastructure Owner</div>
+        <div class="sh-divl" style="background:var(--info)"></div>
+        <div class="sh-sec">Experienced with Docker, Nginx, and network security. Controls infrastructure posture. Drives SR13 — MFA for all accounts.</div>
+      </div>
+
+      <div class="sh-card">
+        <div class="sh-role">SH05 · Business Manager</div>
+        <div class="sh-name">Regional Director</div>
+        <div class="sh-pname">Deployment Approver</div>
+        <div class="sh-divl" style="background:var(--accent)"></div>
+        <div class="sh-sec">Commercial impact accountability. No technical background. Drives SR03 — availability and malicious activity detection.</div>
+      </div>
+
+      <div class="sh-card">
+        <div class="sh-role">SH06 · Customer</div>
+        <div class="sh-name">Hotel Guest</div>
+        <div class="sh-pname" style="color:var(--t3)">Anonymous Public User</div>
+        <div class="sh-divl" style="background:var(--t4)"></div>
+        <div class="sh-sec">No knowledge of application architecture. Interacts only via public chat widget. Drives SR04 — GDPR Article 15 &amp; 17 rights.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 5 — DATA ASSETS
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s5" data-ticker="0">
+  <div class="si">
+    <div class="s-eye">Data Classification</div>
+    <div class="s-title">What Are We Protecting?</div>
+    <div class="s-sub">Six assets classified against StayWell's three-tier protection profile — Very High threshold: &gt;€40M impact</div>
+    <div class="g3" style="flex:1;align-content:start">
+
+      <div class="as-card">
+        <div class="as-code">AS01</div>
+        <div class="as-name">Customer Personal Data</div>
+        <div class="as-detail">Names, email addresses, phone numbers of all hotel guests</div>
+        <div class="as-row">
+          <span class="badge bbh">High</span>
+          <div class="obj-badges"><span class="obj-b obj-c">C</span><span class="obj-b obj-i">I</span><span class="obj-b obj-a">A</span></div>
+        </div>
+        <div style="font-size:9px;color:var(--t4);margin-top:5px;font-family:var(--fm)">GDPR Art. 4 · Art. 83 fines · Art. 33 breach notification</div>
+      </div>
+
+      <div class="as-card">
+        <div class="as-code">AS02</div>
+        <div class="as-name">Communication Logs</div>
+        <div class="as-detail">Raw chat dialogue transcripts between guests and agents</div>
+        <div class="as-row">
+          <span class="badge bbh">High</span>
+          <div class="obj-badges"><span class="obj-b obj-c">C</span><span class="obj-b obj-i">I</span></div>
+        </div>
+        <div style="font-size:9px;color:var(--t4);margin-top:5px;font-family:var(--fm)">Confidentiality of guest issues is critical</div>
+      </div>
+
+      <div class="as-card">
+        <div class="as-code">AS03</div>
+        <div class="as-name">Agent Login Data</div>
+        <div class="as-detail">User credentials for all Customer Care Agents</div>
+        <div class="as-row">
+          <span class="badge bvh">Very High</span>
+          <div class="obj-badges"><span class="obj-b obj-c">C</span></div>
+        </div>
+        <div style="font-size:9px;color:var(--t4);margin-top:5px;font-family:var(--fm)">Compromise grants full dashboard access to all guest PII</div>
+      </div>
+
+      <div class="as-card">
+        <div class="as-code">AS04</div>
+        <div class="as-name">System Integration Data</div>
+        <div class="as-detail">Webhook secrets, API keys for WhatsApp &amp; external services</div>
+        <div class="as-row">
+          <span class="badge bvh">Very High</span>
+          <div class="obj-badges"><span class="obj-b obj-c">C</span><span class="obj-b obj-i">I</span><span class="obj-b obj-a">A</span></div>
+        </div>
+        <div style="font-size:9px;color:var(--t4);margin-top:5px;font-family:var(--fm)">Exposure allows impersonation of trusted external services</div>
+      </div>
+
+      <div class="as-card">
+        <div class="as-code">AS05</div>
+        <div class="as-name">Log Files Data</div>
+        <div class="as-detail">Application security and audit event logs</div>
+        <div class="as-row">
+          <span class="badge bbh">High</span>
+          <div class="obj-badges"><span class="obj-b obj-i">I</span></div>
+        </div>
+        <div style="font-size:9px;color:var(--t4);margin-top:5px;font-family:var(--fm)">Integrity critical for incident analysis and GDPR compliance</div>
+      </div>
+
+      <div class="as-card">
+        <div class="as-code">AS06</div>
+        <div class="as-name">Container Configuration Data</div>
+        <div class="as-detail">Docker Compose files, environment variables, internal topology</div>
+        <div class="as-row">
+          <span class="badge bvh">Very High</span>
+          <div class="obj-badges"><span class="obj-b obj-c">C</span><span class="obj-b obj-i">I</span></div>
+        </div>
+        <div style="font-size:9px;color:var(--t4);margin-top:5px;font-family:var(--fm)">Plaintext credentials in config = single point of total compromise</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 6 — ARCHITECTURE
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s6" data-ticker="0">
+  <div class="si">
+    <div class="s-eye">Data Flow Diagram</div>
+    <div class="s-title">System Architecture — Trust Boundaries</div>
+    <div class="s-sub">13 DFD elements across 3 trust zones · Threat modelling applied at every trust boundary crossing</div>
+    <div class="g2" style="flex:1;align-content:start">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="azone az-ext">
+          <div class="azone-lbl">Untrusted External Zone</div>
+          <div style="margin-top:6px">
+            <span class="el-chip el-ext">EL01 Guest Customer</span>
+            <span class="el-chip el-ext">EL02 Customer Care Agent</span>
+            <span class="el-chip el-ext">EL03 WhatsApp Business API</span>
+          </div>
+          <div style="font-size:10px;color:var(--t3);margin-top:7px">All external entities are untrusted sources. Webhook signatures must be validated.</div>
+        </div>
+        <div style="text-align:center;font-family:var(--fm);font-size:9px;color:var(--t4);letter-spacing:1px">
+          ↓ EL08 Untrusted HTTPS &nbsp;·&nbsp; EL09 Authenticated HTTPS &nbsp;·&nbsp; EL10 API Webhook Traffic
+        </div>
+        <div class="azone az-dmz">
+          <div class="azone-lbl">External Edge Boundary (DMZ)</div>
+          <div style="margin-top:6px">
+            <span class="el-chip el-proc">EL04 Nginx Reverse Proxy</span>
+            <span class="el-chip el-proc">EL05 Chatwoot Core Application</span>
+          </div>
+          <div style="font-size:10px;color:var(--t3);margin-top:7px">TLS termination at Nginx. Application not directly reachable from outside. EL11 internal proxy flow.</div>
+        </div>
+        <div style="text-align:center;font-family:var(--fm);font-size:9px;color:var(--t4);letter-spacing:1px">
+          ↓ EL12 TCP/IP (SQL Data) &nbsp;·&nbsp; EL13 TCP/IP (Cache/Jobs)
+        </div>
+        <div class="azone az-int">
+          <div class="azone-lbl">Internal Restricted Boundary</div>
+          <div style="margin-top:6px">
+            <span class="el-chip el-store">EL06 PostgreSQL Database</span>
+            <span class="el-chip el-store">EL07 Redis Queue</span>
+          </div>
+          <div style="font-size:10px;color:var(--t3);margin-top:7px">Data stores must never be publicly reachable. Redis restricted to localhost only.</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="card">
+          <div class="clbl">Key Trust Boundary Crossings</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+            <div style="display:flex;gap:8px;padding:6px 8px;background:var(--surface);border-radius:5px;border-left:2px solid var(--danger)">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--danger);width:30px;flex-shrink:0">EL08</span>
+              <span style="font-size:10px;color:var(--t2)">Public chat → Nginx: untrusted, unauthenticated, input must be sanitised</span>
+            </div>
+            <div style="display:flex;gap:8px;padding:6px 8px;background:var(--surface);border-radius:5px;border-left:2px solid var(--danger)">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--danger);width:30px;flex-shrink:0">EL10</span>
+              <span style="font-size:10px;color:var(--t2)">WhatsApp webhook → Nginx: external, must be HMAC-verified before processing</span>
+            </div>
+            <div style="display:flex;gap:8px;padding:6px 8px;background:var(--surface);border-radius:5px;border-left:2px solid var(--warn)">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--warn);width:30px;flex-shrink:0">EL11</span>
+              <span style="font-size:10px;color:var(--t2)">Nginx → Chatwoot: internal proxy; application must not be directly reachable</span>
+            </div>
+            <div style="display:flex;gap:8px;padding:6px 8px;background:var(--surface);border-radius:5px;border-left:2px solid var(--accent)">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--accent);width:30px;flex-shrink:0">EL12</span>
+              <span style="font-size:10px;color:var(--t2)">Chatwoot → PostgreSQL: encrypted; parameterised queries mandatory to prevent SQL injection</span>
+            </div>
+            <div style="display:flex;gap:8px;padding:6px 8px;background:var(--surface);border-radius:5px;border-left:2px solid var(--accent)">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--accent);width:30px;flex-shrink:0">EL13</span>
+              <span style="font-size:10px;color:var(--t2)">Chatwoot → Redis: restricted to localhost; no external exposure permitted</span>
+            </div>
+          </div>
+        </div>
+        <div class="card dl" style="padding:12px 14px">
+          <div class="clbl">Legend</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+            <span class="el-chip el-ext">External Entity</span>
+            <span class="el-chip el-proc">Process</span>
+            <span class="el-chip el-store">Data Store</span>
+            <span class="el-chip el-flow">Data Flow</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 7 — USE CASES
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s7" data-ticker="0">
+  <div class="si">
+    <div class="s-eye">Use Case Analysis</div>
+    <div class="s-title">What the System Does — and What Security Each Interaction Requires</div>
+    <div class="s-sub">Three use cases defined · Each scoped to specific actors and security objectives · Directly drives Security Requirements</div>
+    <div class="g3" style="flex:1;align-content:start">
+
+      <div class="card al">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--accent)">UC01</span>
+          <div style="display:flex;gap:4px">
+            <span style="font-family:var(--fm);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(255,71,87,.1);color:var(--danger)">C</span>
+            <span style="font-family:var(--fm);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(255,165,2,.1);color:var(--warn)">I</span>
+            <span style="font-family:var(--fm);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(0,212,170,.1);color:var(--accent)">A</span>
+          </div>
+        </div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:6px">Omnichannel Guest Intake</div>
+        <div style="font-size:11px;color:var(--t2);margin-bottom:10px;line-height:1.5">A hotel guest submits a support request via the public website chat widget. Chatwoot routes it as a new ticket in the agent dashboard. The guest is <strong style="color:var(--danger)">unauthenticated</strong> — no login, no verification required.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <span style="font-family:var(--fm);font-size:9px;padding:2px 7px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--t3)">SH06 Guest</span>
+          <span style="font-family:var(--fm);font-size:9px;padding:2px 7px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--t3)">SH03 Agent</span>
+          <span style="font-family:var(--fm);font-size:9px;padding:2px 7px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--t3)">EL01 → EL08</span>
+        </div>
+        <div style="background:var(--surface);border-radius:6px;padding:9px 11px;border-left:2px solid var(--danger)">
+          <div style="font-family:var(--fm);font-size:8px;color:var(--danger);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Security significance</div>
+          <div style="font-size:10.5px;color:var(--t2);line-height:1.4">Fully unauthenticated public entry point — the highest-exposure surface in the system. Three High-rated threats originate here: TR02 (XSS), TR03 (SQLi), TR05 (DoS). All input must be sanitised before reaching the database. Drives SR05, SR07.</div>
+        </div>
+      </div>
+
+      <div class="card wl">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--warn)">UC02</span>
+          <div style="display:flex;gap:4px">
+            <span style="font-family:var(--fm);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(255,71,87,.1);color:var(--danger)">C</span>
+            <span style="font-family:var(--fm);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(255,165,2,.1);color:var(--warn)">I</span>
+          </div>
+        </div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:6px">Agent Ticket Management</div>
+        <div style="font-size:11px;color:var(--t2);margin-bottom:10px;line-height:1.5">An authenticated Customer Care Agent reads, replies to, and closes guest support tickets through the Chatwoot dashboard via an <strong style="color:var(--warn)">authenticated HTTPS session</strong> (EL09). Agents handle guest PII directly.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <span style="font-family:var(--fm);font-size:9px;padding:2px 7px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--t3)">SH03 Agent</span>
+          <span style="font-family:var(--fm);font-size:9px;padding:2px 7px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--t3)">EL02 → EL09</span>
+        </div>
+        <div style="background:var(--surface);border-radius:6px;padding:9px 11px;border-left:2px solid var(--warn)">
+          <div style="font-family:var(--fm);font-size:8px;color:var(--warn);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Security significance</div>
+          <div style="font-size:10.5px;color:var(--t2);line-height:1.4">Agent sessions must be protected against hijacking (TR02, TR09). All agent actions must be logged for GDPR accountability (TR08, ASVS 8.3.7). Horizontal access between agent accounts must be prevented (SUS02 — IDOR). Drives SR05.</div>
+        </div>
+      </div>
+
+      <div class="card il">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--info)">UC03</span>
+          <div style="display:flex;gap:4px">
+            <span style="font-family:var(--fm);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(255,71,87,.1);color:var(--danger)">C</span>
+            <span style="font-family:var(--fm);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(255,165,2,.1);color:var(--warn)">I</span>
+          </div>
+        </div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:6px">User Administration</div>
+        <div style="font-size:11px;color:var(--t2);margin-bottom:10px;line-height:1.5">The IT Ops Manager creates and manages agent accounts, configures permissions, and updates webhook integrations. Requires <strong style="color:var(--info)">administrator role</strong> — the highest privilege level in the system.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <span style="font-family:var(--fm);font-size:9px;padding:2px 7px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--t3)">SH04 IT Ops Admin</span>
+          <span style="font-family:var(--fm);font-size:9px;padding:2px 7px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--t3)">EL02 → EL09</span>
+        </div>
+        <div style="background:var(--surface);border-radius:6px;padding:9px 11px;border-left:2px solid var(--info)">
+          <div style="font-family:var(--fm);font-size:8px;color:var(--info);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Security significance</div>
+          <div style="font-size:10.5px;color:var(--t2);line-height:1.4">Admin actions define the entire access control model. Only the admin role may modify webhook configurations (SR06). Privilege escalation (TR06) here grants god-mode access to all assets. Mass assignment (EVS01) is the specific attack vector. Drives SR05, SR06.</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="s-div"></div>
+    <div style="display:flex;gap:24px;font-family:var(--fm);font-size:10px;color:var(--t3);flex-wrap:wrap">
+      <span>UC01 → <span style="color:var(--accent)">SR05, SR07</span></span>
+      <span>UC02 → <span style="color:var(--accent)">SR05</span></span>
+      <span>UC03 → <span style="color:var(--accent)">SR05, SR06</span></span>
+      <span style="margin-left:auto;color:var(--t4)">Security requirements derived next — from these use cases + stakeholders + interfaces</span>
+    </div>
+  </div>
+</div>
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 8 — SECURITY REQUIREMENTS
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s8" data-ticker="0">
+  <div class="si">
+    <div class="s-eye">Security Requirements</div>
+    <div class="s-title">16 Requirements — Derived from 3 Sources</div>
+    <div class="s-sub">Stakeholder needs · Use case analysis · System interface analysis · All mapped to OWASP ASVS v5.0.0</div>
+    <div class="gcb" style="flex:1;align-content:start">
+
+      <div class="srg">
+        <div class="srg-hd"><div class="srg-dot" style="background:var(--accent)"></div>From Stakeholders</div>
+        <div class="sr-row"><span class="sr-code">SR01</span><span class="sr-txt">Protect all data stored including user and login data</span></div>
+        <div class="sr-row"><span class="sr-code">SR02</span><span class="sr-txt">All customer data protected in transit and at rest</span></div>
+        <div class="sr-row"><span class="sr-code">SR03</span><span class="sr-txt">Detect malicious activity and maintain availability</span></div>
+        <div class="sr-row"><span class="sr-code">SR04</span><span class="sr-txt">Mechanism for GDPR Article 15 &amp; 17 data access / deletion</span></div>
+        <div class="sr-row"><span class="sr-code">SR10</span><span class="sr-txt">Generate and retain security-relevant event logs</span></div>
+        <div class="sr-row"><span class="sr-code">SR13</span><span class="sr-txt">Enforce strong passwords and MFA for all accounts</span></div>
+      </div>
+
+      <div class="srg">
+        <div class="srg-hd"><div class="srg-dot" style="background:var(--warn)"></div>From Use Cases</div>
+        <div class="sr-row"><span class="sr-code">SR05</span><span class="sr-txt">All operations protected by user authentication</span></div>
+        <div class="sr-row"><span class="sr-code">SR06</span><span class="sr-txt">Only Admin users may modify company webhook configurations</span></div>
+        <div class="sr-row"><span class="sr-code">SR07</span><span class="sr-txt">Incoming public chat strings must be sanitised to prevent code execution</span></div>
+        <div style="margin-top:12px">
+          <div class="srg-hd" style="margin-top:4px"><div class="srg-dot" style="background:var(--info)"></div>From Interfaces</div>
+          <div class="sr-row"><span class="sr-code">SR08</span><span class="sr-txt">DB communication correctly configured and encrypted</span></div>
+          <div class="sr-row"><span class="sr-code">SR09</span><span class="sr-txt">WhatsApp API communication protected end-to-end</span></div>
+          <div class="sr-row"><span class="sr-code">SR11</span><span class="sr-txt">Redis restricted to authenticated localhost connections only</span></div>
+          <div class="sr-row"><span class="sr-code">SR12</span><span class="sr-txt">Application not directly reachable outside Nginx boundary</span></div>
+        </div>
+      </div>
+
+      <div class="srg">
+        <div class="srg-hd"><div class="srg-dot" style="background:var(--info)"></div>Advanced Interface Controls</div>
+        <div class="sr-row"><span class="sr-code">SR14</span><span class="sr-txt">All WhatsApp webhook payloads validated via HMAC signature before processing</span></div>
+        <div class="sr-row"><span class="sr-code">SR15</span><span class="sr-txt">Only generic error messages returned publicly — no stack traces or version info</span></div>
+        <div class="sr-row"><span class="sr-code">SR16</span><span class="sr-txt">All secrets injected at runtime — never hardcoded in Docker Compose or version control</span></div>
+        <div class="s-div"></div>
+        <div style="font-family:var(--fm);font-size:9px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Coverage</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:10px">
+            <span style="color:var(--t2)">Every SR has an asset target</span><span style="color:var(--accent);font-family:var(--fm)">✓ SR01–16</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:10px">
+            <span style="color:var(--t2)">Every threat has an SR mitigation</span><span style="color:var(--accent);font-family:var(--fm)">✓ TR01–10</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:10px">
+            <span style="color:var(--t2)">ASVS v5.0.0 control mapped to every SR</span><span style="color:var(--accent);font-family:var(--fm)">✓ Full</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 9 — STRIDE COVERAGE
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s9" data-ticker="1">
+  <div class="si">
+    <div class="s-eye">Threat Model — STRIDE</div>
+    <div class="s-title">STRIDE Coverage Across All 13 Elements</div>
+    <div class="s-sub">All six STRIDE categories represented · Applied to every DFD element via the threat matrix</div>
+    <div class="g3" style="flex:1;align-content:start">
+
+      <div class="sp">
+        <div class="sp-hd">
+          <div class="sp-letter sc-s" style="background:rgba(255,71,87,.1)">S</div>
+          <div><div class="sp-name" style="color:var(--danger)">Spoofing</div><div class="sp-name-full">Impersonating a trusted entity</div></div>
+          <div class="sp-count" style="color:var(--danger)">2</div>
+        </div>
+        <div class="sp-trs">
+          <span class="tr-chip ch">TR01 · Webhook Spoof</span>
+          <span class="tr-chip ch">TR09 · Cred Stuffing</span>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:7px;line-height:1.4">Attacks EL01–EL03 (external entities) and EL08–EL10 (entry data flows)</div>
+      </div>
+
+      <div class="sp">
+        <div class="sp-hd">
+          <div class="sp-letter sc-t" style="background:rgba(255,165,2,.1)">T</div>
+          <div><div class="sp-name" style="color:var(--warn)">Tampering</div><div class="sp-name-full">Malicious data modification</div></div>
+          <div class="sp-count" style="color:var(--warn)">2</div>
+        </div>
+        <div class="sp-trs">
+          <span class="tr-chip ch">TR02 · Stored XSS</span>
+          <span class="tr-chip ch">TR03 · SQL Injection</span>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:7px;line-height:1.4">Exploits unauthenticated public chat widget (EL01, EL08) to corrupt DB (EL06)</div>
+      </div>
+
+      <div class="sp">
+        <div class="sp-hd">
+          <div class="sp-letter sc-r" style="background:rgba(124,131,253,.1)">R</div>
+          <div><div class="sp-name" style="color:var(--info)">Repudiation</div><div class="sp-name-full">Denying an action occurred</div></div>
+          <div class="sp-count" style="color:var(--info)">1</div>
+        </div>
+        <div class="sp-trs">
+          <span class="tr-chip cm">TR08 · No Audit Log</span>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:7px;line-height:1.4">Agent (EL02) can deny modifications with no tamper-evident log to disprove</div>
+      </div>
+
+      <div class="sp">
+        <div class="sp-hd">
+          <div class="sp-letter sc-i" style="background:rgba(0,212,170,.1)">I</div>
+          <div><div class="sp-name" style="color:var(--accent)">Info Disclosure</div><div class="sp-name-full">Exposing private data</div></div>
+          <div class="sp-count" style="color:var(--accent)">2</div>
+        </div>
+        <div class="sp-trs">
+          <span class="tr-chip cm">TR04 · Stack Trace</span>
+          <span class="tr-chip ch">TR10 · Docker Config</span>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:7px;line-height:1.4">Stack traces reveal framework versions; Docker configs expose plaintext credentials</div>
+      </div>
+
+      <div class="sp">
+        <div class="sp-hd">
+          <div class="sp-letter sc-d" style="background:rgba(255,107,157,.1)">D</div>
+          <div><div class="sp-name" style="color:var(--pink)">Denial of Service</div><div class="sp-name-full">Making system unavailable</div></div>
+          <div class="sp-count" style="color:var(--pink)">2</div>
+        </div>
+        <div class="sp-trs">
+          <span class="tr-chip ch">TR05 · Redis Flood</span>
+          <span class="tr-chip cl">TR07 · WhatsApp Outage</span>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:7px;line-height:1.4">TR07 is outside system boundary (Accepted). TR05 overwhelms Redis queue (EL07)</div>
+      </div>
+
+      <div class="sp">
+        <div class="sp-hd">
+          <div class="sp-letter sc-e" style="background:rgba(236,204,104,.1)">E</div>
+          <div><div class="sp-name" style="color:var(--gold)">Elevation of Privilege</div><div class="sp-name-full">Gaining unauthorised access</div></div>
+          <div class="sp-count" style="color:var(--gold)">1</div>
+        </div>
+        <div class="sp-trs">
+          <span class="tr-chip ch">TR06 · Session Escalation</span>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:7px;line-height:1.4">Agent (EL02) manipulates session token to access admin dashboard via EL05</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 10 — THREAT CATALOG
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s10" data-ticker="1">
+  <div class="si">
+    <div class="s-eye">Threat Catalog</div>
+    <div class="s-title">All 10 Identified Threats</div>
+    <div class="s-sub">TR01–TR10 · Full STRIDE coverage · Mapped to OWASP Risk Ratings and ASVS v5.0.0 controls</div>
+    <div class="g5" style="margin-bottom:10px">
+      <div class="tc"><div class="tc-top"><span class="tc-code">TR01</span><span class="badge bh">High</span></div><div class="tc-cat" style="color:var(--danger)">Spoofing</div><div class="tc-name">Attacker spoofs WhatsApp webhook to inject false records into the database</div><div class="tc-el">EL03 · EL10 · EL04</div></div>
+      <div class="tc"><div class="tc-top"><span class="tc-code">TR02</span><span class="badge bh">High</span></div><div class="tc-cat" style="color:var(--warn)">Tampering</div><div class="tc-name">Stored XSS payload via public chat widget executes in agent's browser</div><div class="tc-el">EL01 · EL08 · EL05</div></div>
+      <div class="tc"><div class="tc-top"><span class="tc-code">TR03</span><span class="badge bh">High</span></div><div class="tc-cat" style="color:var(--warn)">Tampering</div><div class="tc-name">SQL injection via chat widget — raw query against PostgreSQL database</div><div class="tc-el">EL01 · EL08 · EL05 · EL12 · EL06</div></div>
+      <div class="tc"><div class="tc-top"><span class="tc-code">TR04</span><span class="badge bm">Medium</span></div><div class="tc-cat" style="color:var(--accent)">Info Disclosure</div><div class="tc-name">Verbose stack trace returned to public widget during Redis crash</div><div class="tc-el">EL04 · EL05</div></div>
+      <div class="tc"><div class="tc-top"><span class="tc-code">TR05</span><span class="badge bh">High</span></div><div class="tc-cat" style="color:var(--pink)">DoS</div><div class="tc-name">Mass automated flood of chat requests overwhelms the Redis job queue</div><div class="tc-el">EL01 · EL08 · EL07</div></div>
+    </div>
+    <div class="g5">
+      <div class="tc"><div class="tc-top"><span class="tc-code">TR06</span><span class="badge bh">High</span></div><div class="tc-cat" style="color:var(--gold)">EoP</div><div class="tc-name">Agent manipulates session token to access the administrator dashboard</div><div class="tc-el">EL02 · EL09 · EL05</div></div>
+      <div class="tc" style="border-color:var(--t4)"><div class="tc-top"><span class="tc-code" style="color:var(--t3)">TR07</span><span class="badge bacc">Accepted</span></div><div class="tc-cat" style="color:var(--t4)">DoS</div><div class="tc-name" style="color:var(--t4)">External WhatsApp regional outage drops connections — outside boundary</div><div class="tc-el">EL03 · EL10</div></div>
+      <div class="tc"><div class="tc-top"><span class="tc-code">TR08</span><span class="badge bm">Medium</span></div><div class="tc-cat" style="color:var(--info)">Repudiation</div><div class="tc-name">Agent denies modifying a ticket — no immutable audit trail to disprove</div><div class="tc-el">EL02 · EL09 · EL05</div></div>
+      <div class="tc"><div class="tc-top"><span class="tc-code">TR09</span><span class="badge bh">High</span></div><div class="tc-cat" style="color:var(--danger)">Spoofing</div><div class="tc-name">Credential stuffing attack impersonates a legitimate Customer Care Agent</div><div class="tc-el">EL02 · EL09 · EL05</div></div>
+      <div class="tc"><div class="tc-top"><span class="tc-code">TR10</span><span class="badge bh">High</span></div><div class="tc-cat" style="color:var(--accent)">Info Disclosure</div><div class="tc-name">Docker Compose file with plaintext credentials discovered via path traversal</div><div class="tc-el">EL05 · EL06</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 11 — OWASP RISK RATINGS (TABLE)
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s11" data-ticker="1">
+  <div class="si">
+    <div class="s-eye">OWASP Risk Matrix</div>
+    <div class="s-title">Threat Severity — Mathematically Verified</div>
+    <div class="s-sub">Updated calculations based on strict 16-factor OWASP Risk Rating Methodology · TR05 and TR07 mathematically shifted to corrected severities.</div>
+    <div style="flex:1;align-content:start">
+      <table class="risk-table">
+        <thead>
+          <tr>
+            <th>Threat Code</th>
+            <th>STRIDE Category</th>
+            <th>Calculated Likelihood</th>
+            <th>Calculated Impact</th>
+            <th>Final Risk Rating</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="rt-code">TR01</span></td>
+            <td class="rt-desc">Spoofing (Webhook)</td>
+            <td><span class="rt-val" style="color:var(--danger)">7.0 High</span></td>
+            <td><span class="rt-val" style="color:var(--warn)">5.8 Medium</span></td>
+            <td><span class="badge bh">High</span></td>
+          </tr>
+          <tr>
+            <td><span class="rt-code">TR02</span></td>
+            <td class="rt-desc">Tampering (Stored XSS)</td>
+            <td><span class="rt-val" style="color:var(--danger)">7.4 High</span></td>
+            <td><span class="rt-val" style="color:var(--danger)">8.0 High</span></td>
+            <td><span class="badge bh">High</span></td>
+          </tr>
+          <tr>
+            <td><span class="rt-code">TR03</span></td>
+            <td class="rt-desc">Tampering (SQL Injection)</td>
+            <td><span class="rt-val" style="color:var(--danger)">6.5 High</span></td>
+            <td><span class="rt-val" style="color:var(--danger)">8.8 High</span></td>
+            <td><span class="badge bh">High</span></td>
+          </tr>
+          <tr>
+            <td><span class="rt-code">TR04</span></td>
+            <td class="rt-desc">Info Disclosure (Stack Trace)</td>
+            <td><span class="rt-val" style="color:var(--danger)">6.5 High</span></td>
+            <td><span class="rt-val" style="color:var(--t2)">2.8 Low</span></td>
+            <td><span class="badge bm">Medium</span></td>
+          </tr>
+          <tr>
+            <td><span class="rt-code">TR05</span></td>
+            <td class="rt-desc" style="color:var(--t1);font-weight:500">DoS (Redis Flood)</td>
+            <td><span class="rt-val" style="color:var(--danger)">7.4 High</span></td>
+            <td><span class="rt-val" style="color:var(--warn)">3.9 Medium</span></td>
+            <td><span class="badge bh">High</span></td>
+          </tr>
+          <tr>
+            <td><span class="rt-code">TR06</span></td>
+            <td class="rt-desc">Elevation of Privilege (Session)</td>
+            <td><span class="rt-val" style="color:var(--warn)">5.4 Medium</span></td>
+            <td><span class="rt-val" style="color:var(--danger)">8.4 High</span></td>
+            <td><span class="badge bh">High</span></td>
+          </tr>
+          <tr>
+            <td><span class="rt-code">TR07</span></td>
+            <td class="rt-desc" style="color:var(--t1);font-weight:500">DoS (WhatsApp Outage)</td>
+            <td><span class="rt-val" style="color:var(--danger)">6.8 High</span></td>
+            <td><span class="rt-val" style="color:var(--t2)">2.8 Low</span></td>
+            <td><span class="badge bm">Medium</span> <span style="font-size:10px;color:var(--t4)">(Accepted)</span></td>
+          </tr>
+          <tr>
+            <td><span class="rt-code">TR08</span></td>
+            <td class="rt-desc">Repudiation (No Audit Log)</td>
+            <td><span class="rt-val" style="color:var(--warn)">4.4 Medium</span></td>
+            <td><span class="rt-val" style="color:var(--warn)">5.4 Medium</span></td>
+            <td><span class="badge bm">Medium</span></td>
+          </tr>
+          <tr>
+            <td><span class="rt-code">TR09</span></td>
+            <td class="rt-desc">Spoofing (Cred Stuffing)</td>
+            <td><span class="rt-val" style="color:var(--danger)">6.5 High</span></td>
+            <td><span class="rt-val" style="color:var(--danger)">7.0 High</span></td>
+            <td><span class="badge bh">High</span></td>
+          </tr>
+          <tr>
+            <td><span class="rt-code">TR10</span></td>
+            <td class="rt-desc">Info Disclosure (Docker Config)</td>
+            <td><span class="rt-val" style="color:var(--warn)">5.0 Medium</span></td>
+            <td><span class="rt-val" style="color:var(--danger)">7.8 High</span></td>
+            <td><span class="badge bh">High</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="s-div"></div>
+    <div style="display:flex;gap:20px;align-items:center">
+      <div style="font-family:var(--fm);font-size:10px;color:var(--t3)">Final Risk = <span style="color:var(--t1)">Max(Likelihood, Impact)</span> per strict OWASP average.</div>
+      <div style="font-family:var(--fm);font-size:10px"><span style="color:var(--danger)">■</span> 7× High</div>
+      <div style="font-family:var(--fm);font-size:10px"><span style="color:var(--warn)">■</span> 3× Medium</div>
+      <div style="font-family:var(--fm);font-size:10px"><span style="color:var(--t4)">■</span> 1 Accepted (TR07)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 12 — DAMAGE SCENARIOS
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s12" data-ticker="1">
+  <div class="si">
+    <div class="s-eye">Damage Scenarios</div>
+    <div class="s-title">What Happens if a Threat Succeeds?</div>
+    <div class="s-sub">DS01–DS08 · 5× Very High · 2× High · 1× Medium · All linked to threat decisions</div>
+    <div class="g4" style="margin-bottom:10px">
+      <div class="dsc"><div class="dsc-top"><span class="dsc-code">DS01</span><span class="badge bh">High</span></div><div class="dsc-txt">XSS steals agent session — silent GDPR breach, attacker gains full dashboard access</div><div class="dsc-att">AP02 Eve · → TR02</div></div>
+      <div class="dsc"><div class="dsc-top"><span class="dsc-code">DS02</span><span class="badge bvh">V.High</span></div><div class="dsc-txt">Spoofed webhook injects false records; escalates to full data exfiltration</div><div class="dsc-att">AP02 Eve · → TR01, TR07</div></div>
+      <div class="dsc"><div class="dsc-top"><span class="dsc-code">DS03</span><span class="badge bvh">V.High</span></div><div class="dsc-txt">SQL injection exfiltrates entire PostgreSQL DB — GDPR Art. 33 breach notification triggered</div><div class="dsc-att">AP02 Eve · → TR03</div></div>
+      <div class="dsc"><div class="dsc-top"><span class="dsc-code">DS04</span><span class="badge bvh">V.High</span></div><div class="dsc-txt">Insider escalates to admin, exfiltrates webhook secrets, deletes records — no audit trail</div><div class="dsc-att">AP01 Mallory · → TR06, TR08</div></div>
+    </div>
+    <div class="g4">
+      <div class="dsc"><div class="dsc-top"><span class="dsc-code">DS05</span><span class="badge bh">High</span></div><div class="dsc-txt">Redis DoS — full guest intake outage, SLA breach, revenue loss during peak occupancy</div><div class="dsc-att">AP03 Trent · → TR05</div></div>
+      <div class="dsc"><div class="dsc-top"><span class="dsc-code">DS06</span><span class="badge bvh">V.High</span></div><div class="dsc-txt">Credential stuffing — attacker authenticates as agent, accesses all PII and open tickets</div><div class="dsc-att">AP02 Eve · → TR09</div></div>
+      <div class="dsc"><div class="dsc-top"><span class="dsc-code">DS07</span><span class="badge bm">Medium</span></div><div class="dsc-txt">Stack trace exposes framework version — precursor, enables targeted CVE exploitation</div><div class="dsc-att">AP02 Eve · → TR04</div></div>
+      <div class="dsc"><div class="dsc-top"><span class="dsc-code">DS08</span><span class="badge bvh">V.High</span></div><div class="dsc-txt">Docker Compose credentials extracted — one file read = total DB and API key compromise</div><div class="dsc-att">AP02 Eve · → TR10</div></div>
+    </div>
+    <div class="s-div"></div>
+    <div style="font-size:11px;color:var(--t2)">
+      DS02, DS03, DS04, DS06, DS08 each independently trigger
+      <strong style="color:var(--danger)">GDPR Article 33</strong> — mandatory supervisory authority notification within 72 hours.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 13 — DECISIONS & USER STORIES
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s13" data-ticker="1">
+  <div class="si">
+    <div class="s-eye">Threat Decisions & User Stories</div>
+    <div class="s-title">How We Respond to Each Threat</div>
+    <div class="s-sub">9 Mitigate · 1 Accept · 7 Evil User Stories · 5 Security User Stories</div>
+    <div class="g3" style="flex:1;align-content:start">
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div class="dec-donut">
+            <div class="donut-outer"><div class="donut-val">9</div><div class="donut-lbl">Mitigate</div></div>
+          </div>
+          <div class="acc-box"><div class="acc-val">1</div><div class="acc-lbl">Accept</div></div>
+        </div>
+        <div class="card" style="padding:12px 14px">
+          <div class="clbl">TD01–TD10 Decisions</div>
+          <div class="tr-decision-list" style="margin-top:6px">
+            <div class="trd"><span class="trd-code" style="color:var(--danger)">TR01</span><span class="trd-name">Webhook Spoof</span><span class="badge bmit">Mitigate</span></div>
+            <div class="trd"><span class="trd-code" style="color:var(--danger)">TR02</span><span class="trd-name">Stored XSS</span><span class="badge bmit">Mitigate</span></div>
+            <div class="trd"><span class="trd-code" style="color:var(--danger)">TR03</span><span class="trd-name">SQL Injection</span><span class="badge bmit">Mitigate</span></div>
+            <div class="trd"><span class="trd-code" style="color:var(--warn)">TR04</span><span class="trd-name">Stack Trace</span><span class="badge bmit">Mitigate</span></div>
+            <div class="trd"><span class="trd-code" style="color:var(--warn)">TR05</span><span class="trd-name">Redis DoS</span><span class="badge bmit">Mitigate</span></div>
+            <div class="trd"><span class="trd-code" style="color:var(--danger)">TR06</span><span class="trd-name">Priv. Escalation</span><span class="badge bmit">Mitigate</span></div>
+            <div class="trd"><span class="trd-code" style="color:var(--t4)">TR07</span><span class="trd-name" style="color:var(--t4)">WhatsApp Outage</span><span class="badge bacc">Accept</span></div>
+            <div class="trd"><span class="trd-code" style="color:var(--warn)">TR08</span><span class="trd-name">Repudiation</span><span class="badge bmit">Mitigate</span></div>
+            <div class="trd"><span class="trd-code" style="color:var(--danger)">TR09</span><span class="trd-name">Cred Stuffing</span><span class="badge bmit">Mitigate</span></div>
+            <div class="trd"><span class="trd-code" style="color:var(--danger)">TR10</span><span class="trd-name">Docker Config</span><span class="badge bmit">Mitigate</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="overflow:auto">
+        <div class="srg-hd" style="color:var(--danger)"><div class="srg-dot" style="background:var(--danger)"></div>Evil User Stories (Attack Perspective)</div>
+        <div class="story-item"><span class="story-code" style="color:var(--danger)">EVS01</span><div><div class="story-title">Mass Assignment Privilege Escalation</div><div class="story-persona">Mallory (AP01) · role=admin injection via Burp Suite</div></div></div>
+        <div class="story-item"><span class="story-code" style="color:var(--danger)">EVS02</span><div><div class="story-title">SQL Injection via Public Chat Widget</div><div class="story-persona">Eve (AP02) · ' OR 1=1;-- payload extraction</div></div></div>
+        <div class="story-item"><span class="story-code" style="color:var(--danger)">EVS03</span><div><div class="story-title">DoS via Redis Payload Flooding</div><div class="story-persona">Trent (AP03) · 10,000 req/sec Python script</div></div></div>
+        <div class="story-item"><span class="story-code" style="color:var(--danger)">EVS04</span><div><div class="story-title">Credential Stuffing on Agent Login</div><div class="story-persona">Eve (AP02) · Burp Intruder + breach dumps</div></div></div>
+        <div class="story-item"><span class="story-code" style="color:var(--danger)">EVS05</span><div><div class="story-title">Stored XSS Session Hijack</div><div class="story-persona">Eve (AP02) · &lt;script&gt; via chat widget name field</div></div></div>
+        <div class="story-item"><span class="story-code" style="color:var(--danger)">EVS06</span><div><div class="story-title">Info Gathering via Forced Error</div><div class="story-persona">Eve (AP02) · Malformed request → stack trace</div></div></div>
+        <div class="story-item"><span class="story-code" style="color:var(--danger)">EVS07</span><div><div class="story-title">Docker Credential Extraction</div><div class="story-persona">Eve (AP02) · Path traversal → docker-compose.yml</div></div></div>
+      </div>
+
+      <div class="card" style="overflow:auto">
+        <div class="srg-hd" style="color:var(--accent)"><div class="srg-dot" style="background:var(--accent)"></div>Security User Stories (Defence Perspective)</div>
+        <div class="story-item"><span class="story-code" style="color:var(--accent)">SUS01</span><div><div class="story-title">Protection Against Credential Stuffing</div><div class="story-persona">IT Ops Manager · Rate limiting + CAPTCHA + lockout</div></div></div>
+        <div class="story-item"><span class="story-code" style="color:var(--accent)">SUS02</span><div><div class="story-title">Strict IDOR Protection (Tenant Isolation)</div><div class="story-persona">Customer Care Agent · UUID references + session validation</div></div></div>
+        <div class="story-item"><span class="story-code" style="color:var(--accent)">SUS03</span><div><div class="story-title">Secure Webhook Communications</div><div class="story-persona">DPO · HMAC per-message signatures + TLS 1.3</div></div></div>
+        <div class="story-item"><span class="story-code" style="color:var(--accent)">SUS04</span><div><div class="story-title">Prevention of Mass Assignment Escalation</div><div class="story-persona">IT Ops Manager · Explicit parameter allowlisting</div></div></div>
+        <div class="story-item"><span class="story-code" style="color:var(--accent)">SUS05</span><div><div class="story-title">Immutable Agent Audit Trail</div><div class="story-persona">DPO · Tamper-evident logs per ASVS v5.0.0-8.3.7</div></div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 14 — TRACEABILITY MAP (inline D3)
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s14" data-ticker="0">
+  <div class="si" style="padding-bottom:8px">
+    <div class="s-eye">Full Model Traceability</div>
+    <div class="s-title">End-to-End Traceability — Interactive</div>
+    <div class="s-sub">Hover any <b style="color:var(--accent);font-family:var(--fm)">TD</b> decision to trace the full upstream chain &nbsp;·&nbsp; Click to pin &nbsp;·&nbsp; Click background to release</div>
+    <div style="flex:1;overflow:hidden;position:relative;margin-top:6px;border:1px solid var(--border);border-radius:8px;background:#1a1a1a">
+      <div id="retm-sankey-chart" style="overflow-x:auto;height:100%"></div>
+      <div id="retm-sankey-tooltip" style="position:fixed;background:#111;border:1px solid #444;border-radius:6px;padding:8px 12px;font-size:11px;font-family:var(--fm);color:#eee;pointer-events:none;display:none;z-index:999;max-width:260px;line-height:1.6"></div>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:7px;flex-wrap:wrap;align-items:center">
+      <span style="font-family:var(--fm);font-size:8px;color:var(--t4);letter-spacing:1.5px;text-transform:uppercase">Legend:</span>
+      <div style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:9px;color:var(--t3)"><span style="width:10px;height:10px;border-radius:2px;background:#4a90d9;display:inline-block"></span>SH</div>
+      <div style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:9px;color:var(--t3)"><span style="width:10px;height:10px;border-radius:2px;background:#7b68ee;display:inline-block"></span>EL</div>
+      <div style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:9px;color:var(--t3)"><span style="width:10px;height:10px;border-radius:2px;background:#5ba85b;display:inline-block"></span>UC</div>
+      <div style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:9px;color:var(--t3)"><span style="width:10px;height:10px;border-radius:2px;background:#c8a020;display:inline-block"></span>SR</div>
+      <div style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:9px;color:var(--t3)"><span style="width:10px;height:10px;border-radius:2px;background:#d07050;display:inline-block"></span>AS</div>
+      <div style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:9px;color:var(--t3)"><span style="width:10px;height:10px;border-radius:2px;background:#c04040;display:inline-block"></span>DS</div>
+      <div style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:9px;color:var(--t3)"><span style="width:10px;height:10px;border-radius:2px;background:#e06030;display:inline-block"></span>TR</div>
+      <div style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:9px;color:var(--t3)"><span style="width:10px;height:10px;border-radius:2px;background:#3a9a5c;display:inline-block"></span>TD</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SLIDE 15 — CONCLUSION
+══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s15" data-ticker="1">
+  <div class="si">
+    <div class="s-eye">Conclusion</div>
+    <div class="s-title">Security Posture Summary</div>
+    <div class="s-sub">Full traceability from stakeholders through to threat decisions · GDPR compliance built into the model</div>
+    <div class="g2" style="flex:1;align-content:start;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="gdpr-box">
+          <div class="gdpr-art">GDPR Article 33 — Primary Compliance Driver</div>
+          <div class="gdpr-title">72-Hour Breach Notification Obligation</div>
+          <div class="gdpr-body">StayWell, as a GmbH processing guest personal data under German jurisdiction, is supervised by the LfDI / BfDI. Five of the eight damage scenarios (DS02, DS03, DS04, DS06, DS08) independently trigger a mandatory breach notification to the supervisory authority within 72 hours. This drove the High protection classification for Customer PII (AS01), and the Very High classification for agent credentials (AS03), integration data (AS04), and container config (AS06), shaping the severity of six of the ten identified threats.</div>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div class="clbl">End-to-End Traceability</div>
+          <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">
+            <div style="font-size:11px;color:var(--t2);display:flex;align-items:center;gap:8px">
+              <span style="font-family:var(--fm);font-size:9px;color:var(--accent)">SH</span>
+              <span style="color:var(--t4)">→</span><span style="font-family:var(--fm);font-size:9px;color:var(--accent)">EL</span>
+              <span style="color:var(--t4)">→</span><span style="font-family:var(--fm);font-size:9px;color:var(--accent)">UC</span>
+              <span style="color:var(--t4)">→</span><span style="font-family:var(--fm);font-size:9px;color:var(--accent)">SR</span>
+              <span style="color:var(--t4)">→</span><span style="font-family:var(--fm);font-size:9px;color:var(--accent)">AS</span>
+              <span style="color:var(--t4)">→</span><span style="font-family:var(--fm);font-size:9px;color:var(--accent)">DS</span>
+              <span style="color:var(--t4)">→</span><span style="font-family:var(--fm);font-size:9px;color:var(--accent)">TR</span>
+              <span style="color:var(--t4)">→</span><span style="font-family:var(--fm);font-size:9px;color:var(--accent)">TD</span>
+            </div>
+            <div style="font-size:10.5px;color:var(--t2);line-height:1.5">Every threat decision can be traced backward to the stakeholder needs that motivated it, and forward to the ASVS control that mitigates it. No orphaned nodes in the model.</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--t3);text-transform:uppercase;margin-bottom:10px">Key Findings</div>
+        <div>
+          <div class="finding">
+            <div class="finding-num">01</div>
+            <div class="finding-text"><b>The public chat widget is the highest-risk entry point.</b> It enables three of the six High-rated threats (TR02 XSS, TR03 SQL Injection, TR05 DoS) from unauthenticated external access with no authentication barrier.</div>
+          </div>
+          <div class="finding">
+            <div class="finding-num">02</div>
+            <div class="finding-text"><b>Insider threat and repudiation are underestimated in typical chat platform deployments.</b> TR06 (session escalation) and TR08 (repudiation) together cover DS04 — the most damaging scenario — because there is no audit trail and no post-incident forensic capability without SR10 in place.</div>
+          </div>
+          <div class="finding">
+            <div class="finding-num">03</div>
+            <div class="finding-text"><b>Container misconfiguration is a single point of total failure.</b> TR10 (Docker Compose credential exposure) leads to DS08 — full compromise of all six assets in a single read operation. SR16 (runtime secrets injection) is the critical control.</div>
+          </div>
+          <div class="finding">
+            <div class="finding-num">04</div>
+            <div class="finding-text"><b>TR07 is correctly Accepted — not all risks require mitigation.</b> The WhatsApp regional outage is outside StayWell's control boundary. The Accept decision is justified because no internal data is compromised and StayWell has no contractual leverage over Meta infrastructure uptime.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════ -->
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let cur = 0;
+
+document.getElementById('tot-slides').textContent = total;
+
+function go(dir) {
+  const next = cur + dir;
+  if (next < 0 || next >= total) return;
+  slides[cur].classList.add('exit-left');
+  setTimeout(() => slides[cur].classList.remove('exit-left'), 350);
+  slides[cur].classList.remove('active');
+  cur = next;
+  slides[cur].classList.add('active');
+  update();
+}
+
+function update() {
+  document.getElementById('cur-slide').textContent = cur + 1;
+  document.getElementById('progress').style.width = ((cur + 1) / total * 100) + '%';
+  // ticker
+  const showTicker = slides[cur].dataset.ticker === '1';
+  document.getElementById('ticker').style.opacity = showTicker ? '1' : '0';
+  document.getElementById('ticker').style.pointerEvents = showTicker ? 'auto' : 'none';
+  // nav hint
+  document.getElementById('slide-hint').style.opacity = cur === 0 ? '1' : '0';
+}
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   go(-1);
+});
+
+// Touch swipe
+let tx = 0;
+document.addEventListener('touchstart', e => tx = e.touches[0].clientX);
+document.addEventListener('touchend', e => {
+  const dx = tx - e.changedTouches[0].clientX;
+  if (Math.abs(dx) > 50) go(dx > 0 ? 1 : -1);
+});
+
+update();
+
+
+// ══════════════════════════════════════════════════════════
+// INLINE SANKEY — renders D3 chart directly in slide 14
+// ══════════════════════════════════════════════════════════
+(function initSankey() {
+  if (typeof d3 === 'undefined') {
+    setTimeout(initSankey, 100); return;
+  }
+  const container = document.getElementById('retm-sankey-chart');
+  const tooltip   = document.getElementById('retm-sankey-tooltip');
+  if (!container || !tooltip) return;
+
+  const skMeta = {
+    SH01:"Product Owner",SH02:"Data Protection Officer",SH03:"Customer Care Agent",
+    SH04:"IT Ops Manager",SH05:"Regional Director",SH06:"Hotel Guest",
+    EL01:"Guest Customer (External)",EL02:"Customer Care Agent (External)",
+    EL03:"WhatsApp Business API",EL04:"Nginx Reverse Proxy",
+    EL05:"Chatwoot Core Application",EL06:"PostgreSQL Database",
+    EL07:"Redis Queue",EL08:"Untrusted HTTPS Flow",
+    EL09:"Authenticated HTTPS Flow",EL10:"API Webhook Traffic",
+    EL11:"Proxied Internal HTTP",EL12:"TCP/IP SQL Data",EL13:"TCP/IP Cache/Jobs",
+    UC01:"Omnichannel Guest Intake",UC02:"Agent Ticket Management",UC03:"Admin Account Management",
+    SR01:"Data minimisation",SR02:"Data protection in transit & rest",SR03:"Availability SLA",
+    SR04:"GDPR data subject rights",SR05:"Authentication required",SR06:"Admin-only webhook config",
+    SR07:"Input validation & output encoding",SR08:"Encrypted DB comms",SR09:"WhatsApp HMAC verify",
+    SR10:"Security event logging",SR11:"Redis localhost-only",SR12:"Nginx internal proxy restriction",
+    SR13:"MFA for admin/agent accounts",SR14:"Webhook signature validation",
+    SR15:"Generic error handling only",SR16:"Secrets management (no plaintext creds)",
+    AS01:"Customer PII (High)",AS02:"Communication Logs (High)",
+    AS03:"Agent Login Data (Very High)",AS04:"System Integration Data (Very High)",
+    AS05:"Log Files Data (High)",AS06:"Container Configuration Data (Very High)",
+    DS01:"XSS session hijack",DS02:"Webhook injection/DoS",DS03:"DB exfiltration",
+    DS04:"Insider priv. escalation + repudiation",DS05:"Redis DoS / service outage",
+    DS06:"Agent credential compromise",DS07:"Stack trace info disclosure",DS08:"Docker credential extraction",
+    TR01:"Spoofing – Webhook",TR02:"Tampering – Stored XSS",TR03:"Tampering – SQL Injection",
+    TR04:"Info Disclosure – Stack Trace",TR05:"DoS – Redis Flood",
+    TR06:"Elevation of Privilege – Session",TR07:"DoS – External WhatsApp (Accepted)",
+    TR08:"Repudiation – No Audit Log",TR09:"Spoofing – Cred Stuffing",TR10:"Info Disclosure – Docker Config",
+    TD01:"Mitigate",TD02:"Mitigate",TD03:"Mitigate",TD04:"Mitigate",TD05:"Mitigate",
+    TD06:"Mitigate",TD07:"Accept",TD08:"Mitigate",TD09:"Mitigate",TD10:"Mitigate"
+  };
+
+  const skNodes = [
+    {id:"SH01",col:0},{id:"SH02",col:0},{id:"SH03",col:0},{id:"SH04",col:0},{id:"SH05",col:0},{id:"SH06",col:0},
+    {id:"EL01",col:1},{id:"EL02",col:1},{id:"EL03",col:1},{id:"EL04",col:1},{id:"EL05",col:1},{id:"EL06",col:1},
+    {id:"EL07",col:1},{id:"EL08",col:1},{id:"EL09",col:1},{id:"EL10",col:1},{id:"EL11",col:1},{id:"EL12",col:1},{id:"EL13",col:1},
+    {id:"UC01",col:2},{id:"UC02",col:2},{id:"UC03",col:2},
+    {id:"SR01",col:3},{id:"SR02",col:3},{id:"SR03",col:3},{id:"SR04",col:3},
+    {id:"SR05",col:3},{id:"SR06",col:3},{id:"SR07",col:3},{id:"SR08",col:3},
+    {id:"SR09",col:3},{id:"SR10",col:3},{id:"SR11",col:3},{id:"SR12",col:3},
+    {id:"SR13",col:3},{id:"SR14",col:3},{id:"SR15",col:3},{id:"SR16",col:3},
+    {id:"AS01",col:4},{id:"AS02",col:4},{id:"AS03",col:4},{id:"AS04",col:4},{id:"AS05",col:4},{id:"AS06",col:4},
+    {id:"DS01",col:5},{id:"DS02",col:5},{id:"DS03",col:5},{id:"DS04",col:5},
+    {id:"DS05",col:5},{id:"DS06",col:5},{id:"DS07",col:5},{id:"DS08",col:5},
+    {id:"TR01",col:6},{id:"TR02",col:6},{id:"TR03",col:6},{id:"TR04",col:6},{id:"TR05",col:6},
+    {id:"TR06",col:6},{id:"TR07",col:6},{id:"TR08",col:6},{id:"TR09",col:6},{id:"TR10",col:6},
+    {id:"TD01",col:7},{id:"TD02",col:7},{id:"TD03",col:7},{id:"TD04",col:7},{id:"TD05",col:7},
+    {id:"TD06",col:7},{id:"TD07",col:7},{id:"TD08",col:7},{id:"TD09",col:7},{id:"TD10",col:7}
+  ];
+
+  const skIdx = {};
+  skNodes.forEach((n,i) => skIdx[n.id] = i);
+
+  const skLinks = [
+    ["SH01","EL05"],["SH02","EL06"],["SH03","EL02"],["SH04","EL04"],["SH05","EL05"],["SH06","EL01"],
+    ["EL01","UC01"],["EL02","UC02"],["EL02","UC03"],
+    ["SH02","SR01"],["SH03","SR02"],["SH05","SR03"],["SH06","SR04"],["SH01","SR10"],["SH04","SR13"],
+    ["UC01","SR05"],["UC01","SR07"],["UC02","SR05"],["UC03","SR06"],
+    ["EL06","SR08"],["EL03","SR09"],["EL07","SR11"],["EL04","SR12"],
+    ["EL10","SR14"],["EL05","SR15"],["EL13","SR16"],
+    ["EL08","SR07"],["EL09","SR05"],["EL11","SR12"],["EL12","SR08"],
+    ["SR01","AS01"],["SR02","AS01"],["SR04","AS01"],["SR08","AS01"],
+    ["SR07","AS02"],["SR05","AS03"],["SR13","AS03"],["SR03","AS02"],
+    ["SR06","AS04"],["SR14","AS04"],["SR09","AS04"],["SR11","AS04"],["SR12","AS02"],
+    ["SR10","AS05"],["SR15","AS05"],["SR16","AS06"],
+    ["AS01","DS01"],["AS01","DS03"],["AS01","DS06"],
+    ["AS02","DS01"],["AS02","DS02"],["AS02","DS05"],["AS03","DS06"],
+    ["AS04","DS02"],["AS04","DS04"],["AS04","DS08"],
+    ["AS05","DS04"],["AS05","DS07"],["AS06","DS08"],
+    ["DS01","TR02"],["DS02","TR01"],["DS02","TR07"],["DS03","TR03"],["DS04","TR06"],["DS04","TR08"],
+    ["DS05","TR05"],["DS06","TR09"],["DS07","TR04"],["DS08","TR10"],
+    ["TR01","TD01"],["TR02","TD02"],["TR03","TD03"],["TR04","TD04"],["TR05","TD05"],
+    ["TR06","TD06"],["TR07","TD07"],["TR08","TD08"],["TR09","TD09"],["TR10","TD10"]
+  ];
+
+  const skFwd = {}, skBwd = {};
+  skNodes.forEach(n => { skFwd[n.id]=new Set(); skBwd[n.id]=new Set(); });
+  skLinks.forEach(([s,t]) => { skFwd[s].add(t); skBwd[t].add(s); });
+
+  function skGetConnected(id) {
+    if (id.startsWith('TD')) {
+      const v=new Set([id]),q=[id];
+      while(q.length){const c=q.shift();for(const n of skBwd[c])if(!v.has(n)){v.add(n);q.push(n);}}
+      return v;
+    }
+    const v=new Set([id]);
+    for(const n of skFwd[id])v.add(n);
+    for(const n of skBwd[id])v.add(n);
+    return v;
+  }
+
+  const COL_COLORS = ["#4a90d9","#7b68ee","#5ba85b","#c8a020","#d07050","#c04040","#e06030","#3a9a5c"];
+  const COL_LABELS = ["Stakeholder","Element","Use Case","Security Req.","Assets","Damage","Threat","Decision"];
+  const W=1360, NW=84, NH=22, NG=5, NC=8, LH=4;
+  const CW = W/NC, PTOP=55;
+
+  const cols = Array.from({length:NC},()=>[]);
+  skNodes.forEach(n=>cols[n.col].push(n));
+  const colHs = cols.map(c=>c.length*(NH+NG)-NG);
+  const maxH = Math.max(...colHs);
+  const SVH = maxH+PTOP+30;
+
+  cols.forEach((cn,c)=>{
+    const ch=cn.length*(NH+NG)-NG, sy=PTOP+(maxH-ch)/2;
+    cn.forEach((n,i)=>{n.x=c*CW+(CW-NW)/2;n.y=sy+i*(NH+NG);});
+  });
+
+  const svg = d3.select(container).append('svg')
+    .attr('width',W).attr('height',SVH)
+    .attr('viewBox',`0 0 ${W} ${SVH}`)
+    .style('background','#1a1a1a').style('display','block');
+
+  // Column labels
+  COL_LABELS.forEach((lbl,c)=>{
+    svg.append('text')
+      .attr('x',c*CW+CW/2).attr('y',24)
+      .attr('text-anchor','middle').attr('fill',COL_COLORS[c])
+      .style('font-family',"'Courier New',monospace")
+      .style('font-size','11px').style('font-weight','bold')
+      .style('letter-spacing','1px').text(lbl);
+  });
+
+  // Links
+  const srcOff={},tgtOff={};
+  skNodes.forEach(n=>{srcOff[n.id]=0;tgtOff[n.id]=0;});
+  const linkData = skLinks.map(([sid,tid])=>{
+    const s=skNodes[skIdx[sid]],t=skNodes[skIdx[tid]];
+    const sx=s.x+NW,sy=s.y+NH/2-LH/2+srcOff[sid];
+    const tx=t.x,ty=t.y+NH/2-LH/2+tgtOff[tid];
+    srcOff[sid]+=LH+1;tgtOff[tid]+=LH+1;
+    const mx=(sx+tx)/2;
+    return {sid,tid,path:`M${sx},${sy} C${mx},${sy} ${mx},${ty} ${tx},${ty}`,col:s.col};
+  });
+
+  const linkG=svg.append('g');
+  linkData.forEach(l=>{
+    linkG.append('path').attr('d',l.path)
+      .attr('stroke',COL_COLORS[l.col]).attr('stroke-width',LH)
+      .attr('fill','none').attr('stroke-opacity',0.25)
+      .attr('data-sk-src',l.sid).attr('data-sk-tgt',l.tid);
+  });
+
+  // Nodes
+  const nRects={},nTexts={};
+  let pinned=null;
+
+  skNodes.forEach(n=>{
+    const color=n.id==='TD07'?'#7a3010':COL_COLORS[n.col];
+    const g=svg.append('g').style('cursor','pointer');
+    const rect=g.append('rect')
+      .attr('x',n.x).attr('y',n.y).attr('width',NW).attr('height',NH)
+      .attr('rx',4).attr('fill',color).attr('fill-opacity',0.22)
+      .attr('stroke',color).attr('stroke-width',1);
+    const txt=g.append('text')
+      .attr('x',n.x+NW/2).attr('y',n.y+NH/2+1)
+      .attr('text-anchor','middle').attr('dominant-baseline','middle')
+      .attr('fill','#d0d0d0')
+      .style('font-size','10px').style('font-family',"'Courier New',monospace")
+      .text(n.id==='TD07'?'TD07 ✕':n.id);
+    nRects[n.id]={rect,color};nTexts[n.id]=txt;
+
+    g.on('mouseover',function(ev){if(!pinned)applyHL(n.id,ev);});
+    g.on('mousemove',function(ev){if(!pinned)moveTip(ev);});
+    g.on('mouseout',function(){if(!pinned)clearHL();});
+    g.on('click',function(ev){
+      ev.stopPropagation();
+      if(pinned===n.id){pinned=null;clearHL();}
+      else{pinned=n.id;applyHL(n.id,ev);}
+    });
+  });
+
+  svg.on('click',function(){if(pinned){pinned=null;clearHL();}});
+
+  function applyHL(id,ev){
+    const conn=skGetConnected(id);
+    skNodes.forEach(n=>{
+      const {rect}=nRects[n.id];
+      if(conn.has(n.id)){rect.attr('fill-opacity',0.85).attr('stroke-width',n.id===id?2.5:1.5);nTexts[n.id].attr('fill','#fff');}
+      else{rect.attr('fill-opacity',0.05).attr('stroke-width',0.5);nTexts[n.id].attr('fill','#333');}
+    });
+    const isTD=id.startsWith('TD');
+    linkData.forEach(l=>{
+      const act=isTD?(conn.has(l.sid)&&conn.has(l.tid)):(l.sid===id||l.tid===id);
+      d3.selectAll(`path[data-sk-src="${l.sid}"][data-sk-tgt="${l.tid}"]`)
+        .attr('stroke-opacity',act?0.80:0.04).attr('stroke-width',act?LH+1:LH);
+    });
+    const conns=[...conn].filter(x=>x!==id);
+    tooltip.style.display='block';
+    tooltip.innerHTML=`<strong style="color:#fff">${id}</strong><br><span style="color:#aaa">${skMeta[id]||''}</span><br><span style="color:#666;font-size:10px">${conns.length} connected</span>`;
+    moveTip(ev);
+  }
+
+  function clearHL(){
+    skNodes.forEach(n=>{nRects[n.id].rect.attr('fill-opacity',0.22).attr('stroke-width',1);nTexts[n.id].attr('fill','#d0d0d0');});
+    linkData.forEach(l=>{d3.selectAll(`path[data-sk-src="${l.sid}"][data-sk-tgt="${l.tid}"]`).attr('stroke-opacity',0.25).attr('stroke-width',LH);});
+    tooltip.style.display='none';
+  }
+
+  function moveTip(ev){
+    tooltip.style.left=(ev.clientX+14)+'px';
+    tooltip.style.top=(ev.clientY-8)+'px';
+  }
+})();
+
+</script>
+</body>
+</html>

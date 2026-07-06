@@ -1,0 +1,642 @@
+<html>
+<head>
+<style>
+@page {
+  size: letter;
+  margin: 2.3cm 2cm 2cm 2cm;
+  @frame footer_frame { -pdf-frame-content: footer_content; bottom: 1cm; margin-left: 2cm; margin-right: 2cm; height: 1cm; }
+}
+body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1a1a1a; line-height: 1.55; }
+h1 { font-size: 19pt; color: #0c447c; border-bottom: 2px solid #0c447c; padding-bottom: 5px; margin-top: 0; }
+h2 { font-size: 14pt; color: #0c447c; margin-top: 20px; margin-bottom: 8px; }
+h3 { font-size: 11.5pt; color: #26215c; margin-top: 14px; margin-bottom: 6px; }
+h4 { font-size: 10.5pt; color: #333; margin-top: 10px; margin-bottom: 4px; }
+p { margin: 6px 0; }
+code { font-family: Courier, monospace; font-size: 9pt; background-color: #f2f2f2; padding: 1px 3px; }
+pre { background-color: #f4f4f4; border: 0.5px solid #ccc; padding: 8px; font-family: Courier, monospace; font-size: 8pt; line-height: 1.35; }
+table { border-collapse: collapse; width: 100%; margin-top: 8px; margin-bottom: 10px; }
+td, th { border: 0.5px solid #999; padding: 4px 8px; font-size: 8.5pt; text-align: left; vertical-align: top; }
+th { background-color: #e6f1fb; color: #0c447c; }
+.callout { background-color: #eaf3de; border-left: 3px solid #639922; padding: 6px 12px; margin: 10px 0; font-size: 9.5pt; }
+.warning { background-color: #faece7; border-left: 3px solid #d85a30; padding: 6px 12px; margin: 10px 0; font-size: 9.5pt; }
+.finding { background-color: #e6f1fb; border-left: 3px solid #378add; padding: 6px 12px; margin: 10px 0; font-size: 9.5pt; }
+.pagebreak { page-break-before: always; }
+.toc a { color: #1a1a1a; text-decoration: none; }
+img { margin: 8px 0; }
+.small { font-size: 8.5pt; color: #555; }
+ul, ol { margin: 6px 0; padding-left: 20px; }
+li { margin: 3px 0; }
+.center { text-align: center; }
+</style>
+</head>
+<body>
+<div id="footer_content" style="text-align:center; font-size: 8pt; color: #888;">Autonomous SOC — Master Documentation &nbsp;|&nbsp; Page <pdf:pagenumber /> of <pdf:pagecount /></div>
+
+<div class="center" style="margin-top: 120px;">
+<h1 style="border:none; font-size: 26pt;">Autonomous SOC</h1>
+<p style="font-size: 14pt; color: #444;">Containerized Cyber Range</p>
+<p style="font-size: 12pt; color: #666; margin-top: 40px;">Master Technical Documentation</p>
+<p style="font-size: 10pt; color: #888;">Architecture &middot; Machine Learning Pipeline &middot; Agentic Orchestration &middot; Engineering Journal</p>
+<p style="font-size: 9pt; color: #999; margin-top: 60px;">A reference for understanding and presenting every part of this system - written to be read end to end<br/>by a teammate with no prior exposure to the codebase.</p>
+</div>
+
+<div class="pagebreak"></div>
+<h1>Table of Contents</h1>
+<div class="toc">
+<p><b>1. Introduction &amp; Project Overview</b> — what this system is, why it exists, key terms</p>
+<p><b>2. System Architecture</b> — network topology, containers, data flow</p>
+<p><b>3. The Attacker Node</b> — synthetic and real attack generation</p>
+<p><b>4. The SOC Sensor Brain</b> — packet capture, ML inference, orchestration, API, storage</p>
+<p><b>5. The Triage &amp; Resolution Flow</b> — how an alert becomes a decision</p>
+<p><b>6. The Machine Learning Pipeline</b> — data, features, training, calibration, evaluation</p>
+<p><b>7. The Dashboard UI</b> — every view, what it shows, how it's wired</p>
+<p><b>8. Guardrails &amp; Safety Mechanisms</b> — consolidated reference</p>
+<p><b>9. Debugging Journal &amp; Lessons Learned</b> — real bugs found and fixed this project</p>
+<p><b>10. API Reference</b> — every endpoint</p>
+<p><b>11. Known Limitations &amp; Future Work</b></p>
+<p><b>12. Appendix</b> — file manifest, environment variables, common commands</p>
+</div>
+
+<div class="pagebreak"></div>
+<h1>1. Introduction &amp; Project Overview</h1>
+
+<h2>1.1 What this project is</h2>
+<p>This project is a fully self-contained, Docker-based cyber range: a miniature enterprise network with a
+DMZ and an internal segment, an attacker that can launch real and simulated attacks against it, and an
+<b>autonomous Security Operations Center (SOC)</b> that watches all traffic crossing between the two zones,
+decides what's malicious using a two-stage machine learning classifier, and then hands genuine anomalies to
+an AI agent pipeline (built on LangGraph, powered by Google's Gemini) that triages the threat, looks up
+business context about the target asset, and decides whether to autonomously block the attacker at the
+network layer - or, for the most sensitive assets, defer that decision to a human.</p>
+<p>Nothing here is simulated at the level of "pretend attacks happen." Real packets cross a real Docker
+bridge network, a real Random Forest model classifies them, real <code>iptables</code> rules get written to
+the Linux kernel, and (when not in cost-saving dry-run mode) a real call goes out to Gemini and comes back
+with real reasoning about the flow.</p>
+
+<h2>1.2 Why it exists</h2>
+<p>The project demonstrates an end-to-end applied security engineering pipeline: traditional ML for
+high-throughput, low-latency detection (a neural network would be too slow to run on every network flow in
+real time) combined with generative AI for the parts that benefit from reasoning and natural-language
+judgment - triage narrative, business-impact assessment, and the containment decision itself. It is built to
+be defensible under questioning: every claim in this document is backed by something that was actually run
+and observed during development, not by what the code was merely intended to do.</p>
+
+<h2>1.3 Key terms glossary</h2>
+<table>
+<tr><th>Term</th><th>Meaning in this project</th></tr>
+<tr><td>SOC</td><td>Security Operations Center - the team/system responsible for detecting and responding to security threats. Here, an autonomous software stand-in for that team.</td></tr>
+<tr><td>NIDS</td><td>Network Intrusion Detection System - software that inspects network traffic for malicious patterns. `live_sensor.py` is this project's NIDS.</td></tr>
+<tr><td>Network flow</td><td>A bidirectional sequence of packets between the same two endpoints (IP + port pairs) within a time window. NFStream aggregates raw packets into flows; the ML models classify one flow at a time, not one packet at a time.</td></tr>
+<tr><td>Random Forest</td><td>An ensemble of decision trees, each trained on a random subset of data/features; the final prediction is a majority vote. Chosen here over a neural net for inference speed and resilience to noisy features - important when classifying flows in real time.</td></tr>
+<tr><td>LangGraph</td><td>A framework for building multi-step, stateful AI agent workflows as a graph of nodes (here: Triage &rarr; Context &rarr; Response) where each node can read/write shared state and optionally call tools.</td></tr>
+<tr><td>Agentic tool-calling</td><td>Letting an LLM decide whether and how to invoke a function (a "tool") rather than a human/programmer deciding for it. This project binds `block_ip_tool` and `lookup_asset_tool` so the model itself chooses to act.</td></tr>
+<tr><td>TTL</td><td>Time-to-live - here, how long an automatic network block stays active before it automatically expires and is reviewed again.</td></tr>
+<tr><td>Allow-list</td><td>A list of addresses the system will never take action against, regardless of what an alert or an AI model recommends - the last line of defense against a wrong or manipulated decision.</td></tr>
+<tr><td>Human-in-the-loop</td><td>A design pattern where the AI proposes an action but a human must approve it before it executes, reserved here for the highest-value assets.</td></tr>
+</table>
+
+<h2>1.4 What "autonomous" actually means here</h2>
+<div class="callout">
+This is worth being precise about, since it comes up under questioning: the system is autonomous in the
+sense that <i>no human needs to be in the loop for it to detect and contain a threat</i> - but it is not
+unconditionally autonomous. Three separate guardrails (an allow-list, a rate limit, and a criticality-based
+approval requirement) can each independently override the AI's decision, and a human can always intervene via
+the dashboard. Section 8 covers this in full; it is one of the more defensible design points in the whole
+project, and the one most worth understanding deeply if presenting this work.
+</div>
+
+<div class="pagebreak"></div>
+<h1>2. System Architecture</h1>
+
+<h2>2.1 Network topology</h2>
+<p>The environment is split into two isolated Docker bridge networks, joined only through the SOC sensor,
+which acts as the router between them (this is enforced by the sensor container being the only one attached
+to both networks, and by the sensor running with <code>net.ipv4.ip_forward=1</code> and holding the
+`NET_ADMIN` capability needed to write firewall rules):</p>
+<table>
+<tr><th>Zone</th><th>Subnet</th><th>Hosts</th></tr>
+<tr><td>DMZ (`dmz_net`)</td><td>10.5.1.0/24</td><td>attacker-node (10.5.1.10), dmz-web (10.5.1.20, nginx), sensor's DMZ interface (10.5.1.254)</td></tr>
+<tr><td>Internal (`internal_net`)</td><td>10.5.2.0/24</td><td>internal-db (10.5.2.20, Redis), hr-portal (10.5.2.30, mock HTTP app), sensor's internal interface (10.5.2.254)</td></tr>
+</table>
+<p>All traffic from the simulated attacker to the internal network must physically cross the sensor, which
+is what makes a "sit in the middle and inspect everything" NIDS architecture possible without special mirror
+ports or taps - the standard set up in a real enterprise, replicated here with plain Docker networking.</p>
+
+<h2>2.2 Containers (from docker-compose.yml)</h2>
+<table>
+<tr><th>Service</th><th>Image / build</th><th>Role</th></tr>
+<tr><td>attacker-node</td><td>alpine:3.18 + installed tools</td><td>Forges synthetic attack traffic (Scapy) or drives real tools (nmap, hping3) against internal targets.</td></tr>
+<tr><td>dmz-web</td><td>nginx:alpine</td><td>A vulnerable-looking external-facing decoy web server.</td></tr>
+<tr><td>internal-db</td><td>redis:alpine</td><td>Represents a sensitive internal data store; registered as `Critical` criticality.</td></tr>
+<tr><td>hr-portal</td><td>python:3.10-alpine, `http.server`</td><td>Represents a sensitive internal app; registered as `High` criticality.</td></tr>
+<tr><td>soc-sensor-brain</td><td>custom build (Dockerfile.sensor)</td><td>Privileged router + ML classifier + LangGraph orchestrator + Flask API. The core of the system.</td></tr>
+<tr><td>dashboard-ui</td><td>custom build (Dockerfile.dashboard)</td><td>React + TypeScript frontend, served by Vite, polling the sensor's API every 1.5s.</td></tr>
+</table>
+<p class="small">The sensor container runs with <code>privileged: true</code> and mounts <code>./soc_brain</code>
+as a live volume, so code changes on the host take effect on container restart without a rebuild. The
+dashboard's Dockerfile instead does a build-time <code>COPY</code> - a real gotcha encountered this project
+(Section 9) - so frontend changes require <code>docker compose up --build dashboard-ui</code> to actually
+take effect.</p>
+
+<h2>2.3 End-to-end data flow</h2>
+<ol>
+<li>The attacker node forges or drives traffic toward an internal target.</li>
+<li>The sensor's NFStreamer instances (one per interface, <code>eth0</code>=DMZ, <code>eth1</code>=internal)
+capture packets and assemble them into bidirectional flows.</li>
+<li>Each completed flow is fed through the <b>binary Random Forest</b> (Normal vs. Attack). Flows the binary
+model calls Normal are separately checked by a lightweight <b>port-scan correlator</b> that looks across
+flows, not within one, since a real port scan doesn't look anomalous one flow at a time.</li>
+<li>Flows flagged Attack go through the <b>multi-class Random Forest</b> to assign a specific category
+(DoS, Fuzzers, Exploits, Backdoor, Reconnaissance), and - if binary confidence &ge; 0.55 - an alert is created
+and handed to the LangGraph orchestrator on its own background thread.</li>
+<li>The orchestrator runs <b>Triage &rarr; Context &rarr; Response</b>. Response either blocks the source IP
+outright, queues it for human approval, or takes no action, depending on the guardrails in Section 8.</li>
+<li>Every step along the way writes to an in-memory event store, which the dashboard polls and renders live.</li>
+</ol>
+
+<div class="pagebreak"></div>
+<h1>3. The Attacker Node</h1>
+<p><code>attacker/attacker_api.py</code> is a small Flask service running inside the DMZ. It exposes attack
+control over HTTP so the dashboard (and, indirectly, a person clicking buttons) can start/stop attacks
+without shelling into the container.</p>
+
+<h2>3.1 Synthetic attack engine</h2>
+<p>The original and still-default mechanism crafts raw Ethernet frames directly with Scapy - bypassing the
+OS TCP/IP stack entirely - tuned to hit exact packet-count, byte-size, and duration targets per attack type,
+so the resulting NFStream-observed flow statistics land inside a class the ML model was calibrated to
+recognize:</p>
+<table>
+<tr><th>Attack type</th><th>Protocol</th><th>Src/Dst packets</th><th>Mean packet size (src/dst)</th><th>Duration</th></tr>
+<tr><td>dos</td><td>UDP</td><td>20 / 18</td><td>174 / 121 bytes</td><td>1.88s</td></tr>
+<tr><td>backdoors</td><td>UDP</td><td>7 / 2</td><td>103 / 18 bytes</td><td>2.6s</td></tr>
+<tr><td>fuzzers</td><td>TCP</td><td>10 / 6</td><td>91 / 45 bytes</td><td>0.21s</td></tr>
+<tr><td>exploits</td><td>TCP</td><td>10 / 8</td><td>100 / 44 bytes</td><td>0.84s</td></tr>
+<tr><td>port_sweep</td><td>TCP</td><td>10 / 6</td><td>84 / 45 bytes</td><td>0.18s</td></tr>
+</table>
+<div class="callout"><b>Why subtract header lengths from the payload:</b> NFStream measures full Layer-2
+frames, but Scapy's payload argument only controls the application-layer bytes. The code subtracts a 14-byte
+Ethernet header and a 20 or 28-byte TCP/UDP+IP header before constructing each packet, so the <i>observed</i>
+mean packet size on the wire matches the calibrated target exactly rather than overshooting it by the header
+size.</div>
+
+<h2>3.2 Real attack tools</h2>
+<p>Two attack types have a validated, working <b>real-tool</b> path, toggled by a <code>real_tools</code>
+flag from the dashboard:</p>
+<ul>
+<li><b>Volumetric DoS</b> - real <code>hping3</code>, bounded to 500 packets per burst rather than an
+unbounded flood (an unbounded <code>--flood</code> was tested and never produced a completed, classifiable
+NFStream flow at all within observation - see Section 9). Confirmed to reliably classify as <code>DoS</code>
+at 55-95% confidence.</li>
+<li><b>Stealth Port Sweep</b> - real <code>nmap -sT</code>, looped continuously. A genuine multi-port scan
+fragments into many separate 1-2 packet flows, each individually indistinguishable from an ordinary short
+connection to the per-flow classifier - this is caught by the sensor's cross-flow port-scan correlator
+instead (Section 4.1), not by the RF models.</li>
+</ul>
+<p>Exploits, Fuzzers, and Backdoors remain on the synthetic engine even with the toggle enabled - real
+<code>hping3</code>/TCP-handshake traffic for these was tested and produces a genuinely different
+statistical footprint (real SYN/ACK/RST sequences vs. hand-crafted packets with no OS-level handshake) that
+the current calibration doesn't recognize reliably. This is stated in the UI itself, not hidden.</p>
+
+<h2>3.3 Endpoints</h2>
+<table>
+<tr><th>Route</th><th>Method</th><th>Purpose</th></tr>
+<tr><td>/attack</td><td>POST</td><td>Start an attack: <code>{type, target, source_ip, randomize_ip, real_tools}</code></td></tr>
+<tr><td>/stop_attack</td><td>POST</td><td>Stop one attack type by name</td></tr>
+<tr><td>/stop</td><td>POST</td><td>Stop everything, kill any lingering hping3/nmap processes</td></tr>
+<tr><td>/logs, /clear_logs</td><td>GET / POST</td><td>Attacker-side log tail, used by the dashboard's Debug Logs view</td></tr>
+</table>
+
+<div class="pagebreak"></div>
+<h1>4. The SOC Sensor Brain</h1>
+<p>Everything under <code>soc_brain/</code> runs inside the single privileged <code>soc-sensor-brain</code>
+container. This is the most important part of the codebase, and the one worth understanding file by file.</p>
+
+<h2>4.1 live_sensor.py - packet capture, feature extraction, ML inference</h2>
+<p>Spawns one background thread per network interface, each running its own <code>NFStreamer</code>
+instance. For every completed flow (once it clears NFStream's 10-second active timeout or 5-second idle
+timeout), the sensor:</p>
+<ol>
+<li>Discards it if it predates the last environment reset, or if its source IP isn't inside the
+<code>10.5.</code> range (filters out ambient host/Docker-bridge noise).</li>
+<li>Computes 9 derived features (see Section 6.2) from the raw NFStream flow object.</li>
+<li>Runs the binary classifier. If it says <code>Attack</code> with confidence &ge; 0.55, runs the
+multi-class classifier and creates an alert.</li>
+<li>If the binary classifier says <code>Normal</code>, additionally checks the flow against the
+<b>port-scan correlator</b> before moving on.</li>
+</ol>
+
+<h3>The port-scan correlator</h3>
+<div class="callout">
+<b>Why this exists:</b> a real port scan is many separate 1-2 packet flows, one per probed port - each one
+looks statistically identical to an ordinary short connection to a classifier that only ever sees one flow
+at a time. The scan signature ("many destination ports touched by one source in a short window") only
+exists <i>across</i> flows. This function keeps a short rolling window (5 seconds) per source IP of
+recently-touched <code>(dst_ip, dst_port)</code> pairs; once a source crosses 5 distinct targets with small
+flows (&le;4 packets each), it fires a synthetic <code>Reconnaissance</code> alert directly - the same
+technique real NIDS engines like Zeek and Suricata use for scan detection, applied independently of the RF
+models. This was added specifically because a real <code>nmap</code> scan was going completely undetected
+before it existed (Section 9.3).
+</div>
+<pre>SCAN_WINDOW_SECONDS = 5
+SCAN_DISTINCT_TARGET_THRESHOLD = 5
+SCAN_MAX_FLOW_PACKETS = 4
+
+def check_port_scan(src_ip, dst_ip, dst_port, total_packets):
+    if total_packets > SCAN_MAX_FLOW_PACKETS:
+        return None
+    # ... track (dst_ip, dst_port, timestamp) per src_ip in a deque,
+    # drop entries older than the window, and fire once >= 5 distinct
+    # targets are seen (with a 30s suppression window per source so one
+    # burst doesn't re-fire on every subsequent probe)</pre>
+
+<h2>4.2 train_model.py - data engineering and model training</h2>
+<p>Covered in full depth in Section 6. In summary: downloads UNSW-NB15 if not present, engineers 9 features,
+injects jittered synthetic "anchor" rows so the demo attacker's forged traffic reliably lands inside a
+recognized class, then trains the binary and multi-class Random Forests with
+<code>n_estimators=150, max_depth=15, class_weight='balanced'</code>.</p>
+
+<h2>4.3 orchestrator.py - the LangGraph agent pipeline and every guardrail</h2>
+<p>This is the largest and most consequential file (424 lines). It defines:</p>
+<ul>
+<li>The three-node LangGraph state machine: <code>triage &rarr; context &rarr; response &rarr; END</code>.</li>
+<li>Two agent tools bound to the LLM: <code>lookup_asset_tool</code> (Context node) and a per-call
+<code>block_ip_tool</code> built fresh for each alert via <code>make_block_ip_tool()</code> (Response node).</li>
+<li>Every safety guardrail: the protected allow-list, the rate limiter, tiered human-approval, and TTL-based
+block expiry. All covered together in Section 8, since they only make sense as a system.</li>
+<li><code>trigger_swarm()</code>, the entry point called by <code>live_sensor.py</code> for every alert,
+which gates execution on a per-source-IP cooldown before invoking the graph.</li>
+</ul>
+
+<h3>Why block_ip_tool is built fresh per call, not once at import time</h3>
+<div class="warning">
+<b>A real concurrency bug found and fixed during this project:</b> the first implementation passed alert
+context (which asset is being targeted, and therefore whether approval is required) into the tool via
+<code>threading.local()</code>, on the assumption that each alert's tool call would run on the same thread
+that set up the context. It doesn't - LangGraph's <code>ToolNode</code> can execute the tool on a different
+worker thread than the one that invoked the agent, so the thread-local value was silently empty by the time
+the tool ran, and the approval gate defaulted to "unknown criticality" and skipped straight to auto-block.
+The fix replaces thread-local storage with a closure: <code>make_block_ip_tool(alert_data, ...)</code>
+returns a new tool function that captures its context by Python closure semantics, which work correctly
+regardless of which thread eventually calls it. This was caught by a test that asserted a High-criticality
+target routes to approval, not direct block - it failed with thread-local storage and passed with the
+closure, which is exactly the kind of test that's worth being able to explain if asked "how do you know your
+concurrency model is correct."
+</div>
+
+<h2>4.4 dashboard_api.py - the REST API</h2>
+<p>A Flask app run in a background thread inside the same process as the sensor, so it shares the in-memory
+event store directly with no IPC needed. Full endpoint list in Section 10.</p>
+
+<h2>4.5 event_store.py - shared in-memory state</h2>
+<p>A single thread-safe class (`EventStore`, guarded by one `threading.Lock`) holding four things: alerts
+(capped at 100), mitigations (capped at 100), flow events (capped at 50), and a `last_reset_time` timestamp
+used to discard stale flows captured before the last reset. This is deliberately simple - there is no
+database, and a container restart loses all history. That's an accepted limitation for a cyber range
+demo, and one worth naming explicitly if this were ever pitched as a production product (see Section 11).</p>
+
+<h2>4.6 main_runner.py - the entrypoint</h2>
+<p>Starts the dashboard API in a background thread, loads the two pickled models, then starts one capture
+thread per interface. Simple by design - almost all the real logic lives in the modules it imports.</p>
+
+<h2>4.7 calibrate_tool.py - real-traffic calibration helper</h2>
+<p>A standalone script, not part of the live pipeline, written to solve a specific problem: real attack
+tools (nmap, hping3) produce genuinely different flow statistics than the hand-crafted Scapy packets the
+model was originally calibrated against. Run inside the sensor container while a real tool is firing from
+the attacker node, it captures the resulting NFStream feature vector and prints it in a format ready to
+paste into <code>train_model.py</code>'s injection list - closing the loop between "what does this tool
+actually produce on the wire" and "what does the model need to be shown to recognize it."</p>
+
+<div class="pagebreak"></div>
+<h1>5. The Triage &amp; Resolution Flow</h1>
+<p>This is the human-facing heart of the system: what actually happens, step by step, between "a flow looks
+suspicious" and "something gets blocked, deferred, or ignored."</p>
+
+<h2>5.1 Entry gating</h2>
+<p>Before the LangGraph pipeline runs at all, <code>trigger_swarm()</code> checks two things and can exit
+early on either: is this source IP already blocked (skip - it's already handled), and has this specific
+source IP triggered the pipeline within the last 30 seconds (skip - per-source cooldown, to avoid flooding
+the Gemini API during a sustained attack). The cooldown is deliberately <i>per source IP</i>, not global -
+an earlier version used one global cooldown timer, which meant a second, unrelated attacker's alert could be
+silently swallowed just because someone else had tripped the cooldown moments earlier. That was a real
+detection gap, fixed by keying the cooldown dictionary on source IP.</p>
+
+<h2>5.2 Triage &amp; Context</h2>
+<p>Both nodes have a dry-run branch (a canned f-string, used by default so testing doesn't burn API quota)
+and a real branch that calls Gemini. Context's real branch is agentic: rather than Python fetching the
+asset registry lookup and handing the result to the model, a <code>create_react_agent</code> is given the
+<code>lookup_asset_tool</code> and decides for itself to call it - and the prompt is deliberately neutral
+about whether containment is warranted, since that decision belongs to Response alone.</p>
+
+<h2>5.3 Response - the decision tree</h2>
+<p>Response computes the target asset's registered criticality and sets <code>requires_approval</code> for
+anything Critical or High. From there:</p>
+<table>
+<tr><th>Mode</th><th>Requires approval?</th><th>Outcome</th></tr>
+<tr><td>Dry-run</td><td>No</td><td>Calls <code>block_ip()</code> directly</td></tr>
+<tr><td>Dry-run</td><td>Yes</td><td>Calls <code>request_approval()</code> - queued, no action</td></tr>
+<tr><td>Real (agent calls the tool)</td><td>Either</td><td><code>_decide_and_contain()</code> re-checks and routes to block or approval</td></tr>
+<tr><td>Real (agent doesn't call the tool)</td><td>-</td><td>Status <code>Bypassed</code>, nothing happens</td></tr>
+<tr><td>Real (LLM raises an exception)</td><td>Either</td><td>Fails <i>closed</i>: still respects approval requirement, otherwise force-blocks</td></tr>
+</table>
+<div class="finding"><b>Why the agentic branch checks a structured tool call instead of parsing text:</b>
+an earlier version decided whether to block by checking <code>"BLOCK" in decision.upper()</code> against
+free-text model output. That is a real, demonstrated failure mode: a response like <i>"We should NOT BLOCK
+this IP, it's low severity"</i> still contains the substring <code>BLOCK</code> and would have triggered
+containment anyway - the exact opposite of what the sentence says. The fix binds <code>block_ip_tool</code>
+as a real LangChain tool and only acts when the model's structured <code>tool_calls</code> field actually
+names it; a regression test scripted a fake model returning exactly that sentence and confirmed the IP does
+<i>not</i> get blocked.</div>
+
+<h2>5.4 What happens after a decision</h2>
+<ul>
+<li><b>Block executes</b> &rarr; recorded with a <code>blocked_at</code>/<code>expires_at</code> pair; a
+background thread sweeps every 30 seconds and auto-unblocks anything past its TTL (default one hour).</li>
+<li><b>Queued for approval</b> &rarr; sits in the Triage Queue until a human clicks Contain (calls
+<code>block_ip()</code> for real) or Dismiss (discards it, logs a `DENIED` mitigation, never touches
+<code>iptables</code>).</li>
+</ul>
+<p class="small">Regardless of path, everything converges on the same <code>block_ip()</code> /
+<code>request_approval()</code> functions - this single choke point is where the guardrails in Section 8
+actually live, so nothing can bypass them by taking a different code path through the pipeline.</p>
+
+<div class="pagebreak"></div>
+<h1>6. The Machine Learning Pipeline</h1>
+
+<h2>6.1 Dataset</h2>
+<p>UNSW-NB15, a widely-used labeled intrusion detection dataset (257,673 rows across the provided
+train/test split, concatenated and re-split by this project for evaluation). Class distribution is heavily
+imbalanced - <code>Normal</code> and <code>Generic</code> attacks dominate, while <code>Backdoor</code> and
+<code>Worms</code> are a tiny fraction, which is why the multi-class stage uses oversampling (below).</p>
+<img src="/private/tmp/claude-501/-Users-user-Desktop-MKI-FinalProject/27337fec-e0fd-4318-af2d-e0927b6557df/scratchpad/doc_images/class_distribution.png" width="480"/>
+
+<h2>6.2 Feature engineering</h2>
+<p>NFStream's live capture doesn't expose the same ~40 columns UNSW-NB15 ships with, and a live volumetric
+flood can produce byte counts orders of magnitude past anything organic. Both models are trained on 9
+robust, log-scaled features instead:</p>
+<table>
+<tr><th>Feature</th><th>What it captures</th></tr>
+<tr><td>protocol</td><td>TCP/UDP/ICMP mapped to IANA numbers (6/17/1), else 0</td></tr>
+<tr><td>log_duration, log_rate, log_sbytes, log_dbytes</td><td>log1p-transformed volume/timing stats, to keep an extreme flood from blowing out the decision boundary</td></tr>
+<tr><td>packet_ratio, byte_ratio</td><td>destination/source ratios - captures behavioral shape (a port sweep sends far more than it receives) independent of raw volume</td></tr>
+<tr><td>smean, dmean</td><td>mean packet size per direction - stable regardless of flow duration or packet count</td></tr>
+</table>
+<img src="/private/tmp/claude-501/-Users-user-Desktop-MKI-FinalProject/27337fec-e0fd-4318-af2d-e0927b6557df/scratchpad/doc_images/feature_correlation.png" width="440"/>
+
+<h2>6.3 Synthetic signature calibration</h2>
+<p>The attacker's forged packets need to land inside a class the model recognizes, so exact profile
+constants (Section 3.1's table) are injected into training as anchor rows.</p>
+<div class="warning"><b>The overfitting mistake, found and fixed:</b> the original approach injected each
+signature as 5,000 byte-identical copies - which teaches the model one exact <i>point</i> in feature space,
+not a <i>region</i>. Tested against realistic jittered variants of each signature (simulating what a real
+capture of the same attack actually looks like, with natural timing noise), that approach scored as low as
+<b>10% accuracy on Fuzzers</b>. The fix jitters each copy with Gaussian noise scaled to that feature's own
+natural spread in the organic data - 1,000 copies per class, 5% noise, a setting arrived at by sweeping
+several copy-count/noise combinations and picking the one that raised the weakest class's accuracy without
+regressing the others. That configuration scores 100% on DoS/Backdoor/Exploits, 87% on Reconnaissance, and
+83% on Fuzzers under the same realistic-jitter test - a large, measured improvement, not a guess.</div>
+
+<h2>6.4 Training</h2>
+<p>Two <code>RandomForestClassifier</code>s, <code>n_estimators=150, max_depth=15,
+class_weight='balanced'</code>. Stage 1 (binary) trains on the full organic+synthetic set. Stage 2
+(multi-class) trains only on attack rows, oversampled with <code>RandomOverSampler</code> - not SMOTE,
+specifically to keep every training row 100% real/duplicated data rather than synthetically interpolated,
+matching the project's stated design principle of organic-data purity.</p>
+
+<h2>6.5 Evaluation</h2>
+<h3>Binary classifier (held-out organic test set)</h3>
+<img src="/private/tmp/claude-501/-Users-user-Desktop-MKI-FinalProject/27337fec-e0fd-4318-af2d-e0927b6557df/scratchpad/doc_images/binary_confusion_roc.png" width="520"/>
+<h3>Multi-class classifier</h3>
+<img src="/private/tmp/claude-501/-Users-user-Desktop-MKI-FinalProject/27337fec-e0fd-4318-af2d-e0927b6557df/scratchpad/doc_images/multiclass_confusion.png" width="440"/>
+<h3>Feature importance</h3>
+<img src="/private/tmp/claude-501/-Users-user-Desktop-MKI-FinalProject/27337fec-e0fd-4318-af2d-e0927b6557df/scratchpad/doc_images/feature_importance.png" width="520"/>
+
+<h2>6.6 Learning curves and forest-size convergence</h2>
+<p>Random Forests don't have an epoch loss curve the way a neural net does; the two standard analogous
+diagnostics are a train-size learning curve and out-of-bag (OOB) error vs. forest size.</p>
+<img src="/private/tmp/claude-501/-Users-user-Desktop-MKI-FinalProject/27337fec-e0fd-4318-af2d-e0927b6557df/scratchpad/doc_images/learning_curve.png" width="440"/>
+<p>The gap between training and cross-validated accuracy stays small (about 0.03) and doesn't widen at
+larger training sizes - the model isn't meaningfully overfitting, and collecting more organic data would
+likely yield only marginal further gains.</p>
+<img src="/private/tmp/claude-501/-Users-user-Desktop-MKI-FinalProject/27337fec-e0fd-4318-af2d-e0927b6557df/scratchpad/doc_images/oob_error.png" width="440"/>
+<p>OOB error is 0.0717 at 150 trees (the production setting) versus 0.0714 at 200 - the forest has
+essentially converged by 150 trees, confirming that hyperparameter as a reasoned choice rather than an
+arbitrary one.</p>
+
+<h2>6.7 Known limitation: multi-class confusion</h2>
+<div class="warning"><b>Fuzzers, Exploits, and Reconnaissance are frequently confused with each other</b> in
+the multi-class stage - all three are TCP attacks with similar packet counts and mean packet sizes, sitting
+in adjacent regions of the current 9-feature space. This was confirmed live: launching a Fuzzer attack was
+observed to be logged as <code>Exploits</code> in the dashboard on repeated tests. Critically, the
+<b>binary</b> call - Attack vs. Normal, the one that actually gates the mitigation pipeline - remained
+correct every time; only the cosmetic sub-label was wrong. Properly separating these three would need new
+discriminating features (e.g. inter-arrival time variance, TCP flag distributions), not further tuning of
+the injection parameters - a good example of "the fix that would actually work" not being "more of the same
+fix that already helped."</div>
+
+<div class="pagebreak"></div>
+<h1>7. The Dashboard UI</h1>
+<p>A React + TypeScript single-page app (Vite dev server, dark theme), polling the sensor's API every 1.5
+seconds. Recently reorganized from a 3-tab layout (Overview / AI Reports / Debug Logs) into 6 purpose-built
+views, specifically to give the human-in-the-loop approval flow a real interface - it previously had none,
+despite the backend supporting it fully.</p>
+
+<h2>7.1 Command Center</h2>
+<p>The landing view. A metrics strip (Network Status, Pending Review, Active Blocks, Mean Time to
+Containment - the last one computed live by matching mitigation timestamps back to the alert that caused
+them, not a placeholder), the LangGraph pipeline tracker (four nodes, hover for the full markdown report),
+Live Threat Intelligence (recent alerts), a network anomaly area chart, and a "Guardrail Activity" panel -
+horizontal bars showing how many flows were Contained, sent to Pending review, Denied, Refused by the
+allow-list, or Rate limited, so the safety systems are visible instead of buried in logs.</p>
+
+<h2>7.2 Triage Queue</h2>
+<p>The new human-in-the-loop surface. A live badge on the nav item shows the pending count. Each card shows
+the source/destination pair, target criticality, attack type and confidence, the triage report, and how
+long it's been waiting, with <b>Contain</b> and <b>Dismiss</b> buttons wired directly to
+<code>/api/approve</code> and <code>/api/deny</code>. Verified end to end: triggering a DoS attack against
+the High-criticality `hr-portal` produces a real card here; clicking Contain both clears the card and
+actually blocks the IP (confirmed via the active-blocks API, not just the UI updating).</p>
+
+<h2>7.3 Mitigations</h2>
+<p>A manual block form (any IP, subject to the same allow-list and rate limit as the automated path), a live
+table of active blocks with a real countdown to TTL expiry and an Unblock button, and a full mitigation
+history table with color-coded status badges.</p>
+
+<h2>7.4 AI Reports</h2>
+<p>An archive of every Triage/Context report generated, newest first, rendered as markdown cards.</p>
+
+<h2>7.5 Simulation Control</h2>
+<p>The attacker panel, deliberately moved out of the main command view into its own page - a real SOC
+operator's dashboard wouldn't have a "launch attack" panel front and center, since that's a testing
+capability specific to this cyber range, not a feature of the product itself.</p>
+
+<h2>7.6 Debug Logs</h2>
+<p>A filterable tail of `system.log` plus the attacker node's own log, refreshed on the same polling cycle.</p>
+
+<h2>7.7 Resilience: the Error Boundary</h2>
+<div class="warning"><b>A real production bug, found live and fixed:</b> LangChain's message
+<code>.content</code> field isn't always a plain string - some Gemini response shapes (grounding/citation
+metadata attached) return a list of content blocks like <code>[{'type': 'text', 'text': '...', 'extras':
+{...}}]</code> instead. That object shape got stored as an event message and eventually reached
+<code>&lt;ReactMarkdown&gt;{message}&lt;/ReactMarkdown&gt;</code> - React cannot render an object as a
+child, throws, and with no error boundary anywhere in the tree, the <i>entire app</i> unmounted, leaving
+only the dark page background: a full black screen, reported during actual use. Fixed two ways: a
+<code>_extract_text()</code> helper in the backend coerces every LLM-derived message to a flat string
+before it's ever stored (the real fix), and a React <code>ErrorBoundary</code> now wraps each tab's content,
+keyed by the active tab, so if anything ever throws again - this bug or a future one - only that view shows
+a "try again" fallback instead of the whole app going blank.</div>
+
+<div class="pagebreak"></div>
+<h1>8. Guardrails &amp; Safety Mechanisms</h1>
+<p>These five mechanisms are what separate "an LLM decides to run iptables commands" from something
+defensible as a safety-conscious design. Understanding them together, as a system, matters more than any one
+in isolation.</p>
+
+<h2>8.1 Protected allow-list</h2>
+<p>A hard-coded set of addresses the agent can never block, regardless of what any alert or model output
+says: the sensor's own gateway addresses, plus <i>every IP in the registered asset database</i>, extensible
+via a <code>PROTECTED_IPS</code> environment variable.</p>
+<div class="warning"><b>Why "every registered asset," not just gateways - a real incident during
+testing:</b> because <code>eth0</code> and <code>eth1</code> each run an independent NFStreamer capturing
+the same physical conversation, one of them can observe a UDP flow with source and destination reversed
+(hr-portal's ICMP "port unreachable" reply looks, from that interface's vantage point, like hr-portal
+initiating a new flow toward the attacker). This was observed live: the agent attempted to block
+<code>10.5.2.30</code> (hr-portal itself) instead of the real attacker. The fix - extending the allow-list to
+cover every registered asset, not just the two gateway addresses - was then confirmed live to correctly
+refuse the exact same corrupted detection on a repeat run, logging <code>REFUSED: 10.5.2.30 is on the
+protected allow-list</code> instead of severing a legitimate internal asset.</div>
+
+<h2>8.2 Rate limiting</h2>
+<p>A rolling 60-second window capped at <code>MAX_BLOCKS_PER_WINDOW</code> (default 20, environment
+configurable). Once exceeded, further blocks are refused and logged for manual review rather than executed.
+Deliberately set generously rather than strictly, since the dashboard's own "Randomize Source IP" DoS demo
+is designed to show many attacker IPs getting blocked in quick succession - a tight limit would break that
+showcase; the guardrail exists for genuine runaway/spoofed floods, not to interfere with the intended demo.</p>
+
+<h2>8.3 Tiered autonomy (human-in-the-loop approval)</h2>
+<p>Attacks targeting a <code>Critical</code> or <code>High</code> criticality asset are queued for a human
+decision instead of auto-resolving. The reasoning: a false-positive block has a cost proportional to what it
+disrupts, so the assets where a wrong block would do the most damage are exactly the ones where a human
+should be in the loop before anything executes.</p>
+
+<h2>8.4 Block TTL expiry</h2>
+<p>Every automated block carries an expiry (default one hour), swept by a background thread every 30
+seconds. Containment is a hypothesis, not a permanent verdict - this ensures a false positive doesn't stay
+blocked forever without being revisited, without needing a full environment reset to undo it.</p>
+
+<h2>8.5 Per-source cooldown</h2>
+<p>30 seconds between LangGraph invocations for the same source IP, to avoid flooding the Gemini API during
+a sustained attack - keyed per source, not globally, for the reason explained in Section 5.1.</p>
+
+<div class="pagebreak"></div>
+<h1>9. Debugging Journal &amp; Lessons Learned</h1>
+<p>This section exists because a study document is more useful if it shows the actual debugging process,
+not just the finished state - these are real bugs, found through hands-on testing in a live Docker
+environment, not hypothetical.</p>
+
+<h2>9.1 The reversed-detection safety bug</h2>
+<p>Covered in full in Section 8.1. The short version: dual-interface capture of the same physical
+conversation can yield a flow with source and destination swapped, and the agent tried to block a registered
+internal asset instead of the real attacker. Caught live, fixed by broadening the allow-list, confirmed
+fixed on a repeat of the exact same scenario.</p>
+
+<h2>9.2 NFStream timing variability</h2>
+<p>Throughout testing, the delay between traffic actually crossing the wire and NFStream reporting a
+completed flow ranged from near-instant to 90+ seconds, unpredictably, even for identical traffic patterns.
+This is an environment characteristic worth knowing before assuming "no alert yet" means "not detected" -
+in one specific test, traffic confirmed present via `tcpdump` took over 60 seconds longer than expected to
+surface as a classified flow. Practical implication for live demos: let an attack run at least 5-10 seconds
+before stopping it, so NFStream's idle timeout has a reliable chance to close and flush the flow.</p>
+
+<h2>9.3 Real attack tool calibration</h2>
+<p>When asked why real `nmap` traffic wasn't being detected, the actual root causes (found by live packet
+capture and log inspection, not guessed) were: (1) a genuine multi-port scan fragments into many tiny
+flows the per-flow classifier can't see the pattern across - solved by the port-scan correlator (Section
+4.1); and (2) `hping3`'s default behavior increments the source port on every packet, which splits what
+should be one aggregated flow into many single-packet flows - solved by adding `-k -s <fixed_port>` to pin
+it. Both fixes were verified live against the running sensor before being considered done.</p>
+
+<h2>9.4 The black-screen React crash</h2>
+<p>Covered in full in Section 7.7. Confirmed via the user's actual browser console, root-caused to a
+non-string LLM content shape, fixed at the source (backend coercion) and backstopped (frontend error
+boundary), and verified by inspecting every live flow-event message's Python type after redeploying both
+fixes - all confirmed <code>str</code>, including a genuine successfully-returned Gemini markdown report.</p>
+
+<div class="pagebreak"></div>
+<h1>10. API Reference</h1>
+<table>
+<tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+<tr><td>/api/alerts</td><td>GET</td><td>Last 100 ML/correlator-detected alerts</td></tr>
+<tr><td>/api/mitigations</td><td>GET</td><td>Last 100 mitigation actions (blocks, refusals, denials, etc.)</td></tr>
+<tr><td>/api/flow</td><td>GET</td><td>Last 50 LangGraph pipeline step events</td></tr>
+<tr><td>/api/pending_approvals</td><td>GET</td><td>Everything currently queued for human review</td></tr>
+<tr><td>/api/active_blocks</td><td>GET</td><td>Currently blocked IPs with blocked_at / expires_at</td></tr>
+<tr><td>/api/approve</td><td>POST</td><td>`{ip_address}` - approve a pending containment</td></tr>
+<tr><td>/api/deny</td><td>POST</td><td>`{ip_address}` - dismiss a pending containment</td></tr>
+<tr><td>/api/trigger</td><td>POST</td><td>`{ip_address}` - manual block, subject to the same guardrails</td></tr>
+<tr><td>/api/unblock</td><td>POST</td><td>`{ip_address}` - manual unblock</td></tr>
+<tr><td>/api/simulate_attack</td><td>POST</td><td>Proxies to the attacker node's `/attack`</td></tr>
+<tr><td>/api/stop_attack</td><td>POST</td><td>Proxies to the attacker node's `/stop_attack`</td></tr>
+<tr><td>/api/reset</td><td>POST</td><td>Flushes iptables, clears all in-memory state, stops all attacks</td></tr>
+<tr><td>/api/logs, /api/attacker_logs</td><td>GET</td><td>Raw log tails for the Debug Logs view</td></tr>
+<tr><td>/api/clear_logs</td><td>POST</td><td>`{category}` - clears a log category</td></tr>
+</table>
+
+<div class="pagebreak"></div>
+<h1>11. Known Limitations &amp; Future Work</h1>
+<ul>
+<li><b>Multi-class sub-labeling</b> among Fuzzers/Exploits/Reconnaissance remains unreliable (Section 6.7) -
+would need new features, not more calibration tuning.</li>
+<li><b>No persistence</b> - all state is in-memory; a container restart loses history. Fine for a demo,
+disqualifying for a real product without a database.</li>
+<li><b>No authentication</b> on any API endpoint, and CORS is fully open - acceptable for a localhost cyber
+range, not for anything exposed beyond it.</li>
+<li><b>Free-tier Gemini quota</b> (20 requests/day at time of testing) means real-LLM mode exhausts quickly;
+`LLM_DRY_RUN=True` is the practical default for repeated testing.</li>
+<li><b>Real-tool coverage</b> is 2 of 5 attack types (DoS, Port Sweep); Exploits/Fuzzers/Backdoors remain
+synthetic-only, by measured choice, not oversight.</li>
+<li><b>NFStream flow-completion latency</b> is unpredictable in this environment (Section 9.2) - worth
+knowing before assuming a lack of alert means a lack of detection.</li>
+</ul>
+<p>For a fuller "what would you build next" discussion (mitigation connectors beyond raw iptables, real
+persistence, multi-tenant auth, structured LLM output schemas, etc.), see the product-roadmap discussion
+captured in this project's working session history.</p>
+
+<div class="pagebreak"></div>
+<h1>12. Appendix</h1>
+
+<h2>A. File manifest</h2>
+<table>
+<tr><th>Path</th><th>Lines</th><th>Purpose</th></tr>
+<tr><td>soc_brain/live_sensor.py</td><td>~205</td><td>Packet capture, feature extraction, ML inference, port-scan correlator</td></tr>
+<tr><td>soc_brain/orchestrator.py</td><td>~424</td><td>LangGraph pipeline, agent tools, all guardrails</td></tr>
+<tr><td>soc_brain/dashboard_api.py</td><td>~202</td><td>Flask REST API</td></tr>
+<tr><td>soc_brain/event_store.py</td><td>~58</td><td>Thread-safe in-memory state</td></tr>
+<tr><td>soc_brain/train_model.py</td><td>~208</td><td>Data engineering, feature engineering, training</td></tr>
+<tr><td>soc_brain/calibrate_tool.py</td><td>~82</td><td>Real-traffic calibration helper</td></tr>
+<tr><td>soc_brain/main_runner.py</td><td>~36</td><td>Entrypoint</td></tr>
+<tr><td>soc_brain/ml_training_notebook.ipynb</td><td>-</td><td>Executed, Kaggle-style training/evaluation notebook</td></tr>
+<tr><td>attacker/attacker_api.py</td><td>~219</td><td>Synthetic + real attack engines</td></tr>
+<tr><td>dashboard-ui/src/App.tsx</td><td>~766</td><td>All 6 dashboard views</td></tr>
+<tr><td>dashboard-ui/src/ErrorBoundary.tsx</td><td>~50</td><td>Render-crash containment</td></tr>
+<tr><td>dashboard-ui/src/index.css</td><td>~460</td><td>Design system / styling</td></tr>
+<tr><td>docker-compose.yml</td><td>~130</td><td>Full service/network topology</td></tr>
+</table>
+
+<h2>B. Key environment variables</h2>
+<table>
+<tr><th>Variable</th><th>Default</th><th>Effect</th></tr>
+<tr><td>GEMINI_API_KEY</td><td>(required for real mode)</td><td>Auth for Gemini calls</td></tr>
+<tr><td>LLM_DRY_RUN</td><td>True</td><td>Canned responses vs. real Gemini calls</td></tr>
+<tr><td>PROTECTED_IPS</td><td>gateways + registered assets</td><td>Extra comma-separated allow-list entries</td></tr>
+<tr><td>MAX_BLOCKS_PER_WINDOW</td><td>20</td><td>Rate-limit cap per 60s window</td></tr>
+<tr><td>BLOCK_TTL_SECONDS</td><td>3600</td><td>Auto-unblock delay</td></tr>
+</table>
+
+<h2>C. Common commands</h2>
+<pre>docker compose up --build -d          # start everything
+docker compose up --build -d dashboard-ui   # rebuild frontend (build-time COPY, no live mount)
+docker compose restart soc-sensor-brain     # apply backend code changes (live-mounted)
+curl -X POST http://localhost:5000/api/reset  # clear all state, flush iptables</pre>
+
+</body>
+</html>

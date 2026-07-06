@@ -103,7 +103,7 @@ services:
         ipv4_address: 10.5.1.254
       internal_net:
         ipv4_address: 10.5.2.254
-    # The .env file must contain the GEMINI_API_KEY for the CrewAI swarm.
+    # The .env file must contain the GEMINI_API_KEY for the LangGraph swarm.
     env_file:
       - .env
     volumes:

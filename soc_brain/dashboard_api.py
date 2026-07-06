@@ -8,7 +8,15 @@ import urllib.request
 import json
 import ipaddress
 from event_store import store
-from orchestrator import blocked_ips
+from orchestrator import (
+    block_ip,
+    unblock_ip,
+    get_pending_approvals,
+    approve_pending,
+    deny_pending,
+    reset_mitigation_state,
+    get_active_blocks,
+)
 
 def validate_ip(ip_string):
     """Validate that the input is a legitimate IPv4 address."""
@@ -64,28 +72,54 @@ def trigger_block():
     source_ip = data['ip_address']
     if not validate_ip(source_ip):
         return jsonify({"error": "Invalid IP address format"}), 400
-    
-    try:
-        # Check if the IP is already blocked
-        check_cmd = ["iptables", "-C", "FORWARD", "-s", source_ip, "-j", "DROP"]
-        if subprocess.run(check_cmd, capture_output=True).returncode == 0:
-            return jsonify({"status": "INFO", "message": f"IP {source_ip} is already blocked."})
 
-        # Append a DROP rule
-        command = ["iptables", "-A", "FORWARD", "-s", source_ip, "-j", "DROP"]
-        subprocess.run(command, check=True, capture_output=True, text=True)
-        
-        # Log manual mitigation
-        store.add_mitigation({
-            "target_ip": source_ip,
-            "action": "Manual Block",
-            "status": "SUCCESS"
-        })
-        
-        return jsonify({"status": "SUCCESS", "message": f"Manual block deployed for {source_ip}."})
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to execute manual iptables block: {e.stderr}")
-        return jsonify({"status": "FAILED", "message": f"Could not execute iptables command: {e.stderr}"}), 500
+    # Route through the same guarded block_ip used by the agent, so a manual
+    # trigger is still subject to the protected-IP allow-list and rate limit.
+    result = block_ip(source_ip, action_label="Manual Block")
+    status = "FAILED" if result.startswith("FAILED") else ("REFUSED" if result.startswith("REFUSED") else ("RATE_LIMITED" if result.startswith("RATE LIMITED") else "SUCCESS"))
+    http_code = 500 if status == "FAILED" else 200
+    return jsonify({"status": status, "message": result}), http_code
+
+@app.route('/api/unblock', methods=['POST'])
+def unblock_route():
+    data = request.get_json()
+    if not data or 'ip_address' not in data:
+        return jsonify({"error": "Missing 'ip_address' in payload"}), 400
+    source_ip = data['ip_address']
+    if not validate_ip(source_ip):
+        return jsonify({"error": "Invalid IP address format"}), 400
+    result = unblock_ip(source_ip, reason="Manual Unblock")
+    return jsonify({"status": "SUCCESS", "message": result})
+
+@app.route('/api/pending_approvals', methods=['GET'])
+def pending_approvals_route():
+    return jsonify(get_pending_approvals())
+
+@app.route('/api/active_blocks', methods=['GET'])
+def active_blocks_route():
+    return jsonify(get_active_blocks())
+
+@app.route('/api/approve', methods=['POST'])
+def approve_route():
+    data = request.get_json()
+    if not data or 'ip_address' not in data:
+        return jsonify({"error": "Missing 'ip_address' in payload"}), 400
+    source_ip = data['ip_address']
+    if not validate_ip(source_ip):
+        return jsonify({"error": "Invalid IP address format"}), 400
+    result = approve_pending(source_ip)
+    return jsonify({"status": "SUCCESS", "message": result})
+
+@app.route('/api/deny', methods=['POST'])
+def deny_route():
+    data = request.get_json()
+    if not data or 'ip_address' not in data:
+        return jsonify({"error": "Missing 'ip_address' in payload"}), 400
+    source_ip = data['ip_address']
+    if not validate_ip(source_ip):
+        return jsonify({"error": "Invalid IP address format"}), 400
+    result = deny_pending(source_ip)
+    return jsonify({"status": "SUCCESS", "message": result})
 
 
 @app.route('/api/simulate_attack', methods=['POST'])
@@ -124,9 +158,10 @@ def reset_environment():
         # Flush iptables FORWARD chain
         subprocess.run(["iptables", "-F", "FORWARD"], check=False)
         
-        # Clear in-memory store and LLM IP blocks
+        # Clear in-memory store and LLM IP blocks (including rate-limit
+        # counters and any pending manual approvals)
         store.reset()
-        blocked_ips.clear()
+        reset_mitigation_state()
         
         logger.info("Environment reset successfully.")
         return jsonify({"status": "SUCCESS", "message": "Environment reset. All attacks stopped and mitigations cleared."})

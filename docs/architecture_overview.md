@@ -43,3 +43,6 @@ For deep dives into the individual codebases, refer to the component documentati
 - [Attacker Simulation Node](component_attacker_node.md)
 - [Frontend Dashboard UI](component_dashboard_ui.md)
 - [Machine Learning Training Pipeline](ml_model_report.md)
+- [ML Training Notebook (executed, with real metrics/plots)](../soc_brain/ml_training_notebook.ipynb)
+- [Triage & Resolution Flows](triage_resolution_flows.md)
+- [**Master Documentation (PDF)**](Master_Documentation.pdf) — single end-to-end reference covering every component, the ML pipeline, the guardrails, and the real bugs found and fixed during development. Start here.

@@ -1,11 +1,13 @@
 # live_sensor.py
 # Execution: Real-time dual-interface packet capture and ML inference.
 import pickle
+import time
 import numpy as np
 import threading
 import logging
 import sys
 import os
+from collections import defaultdict, deque
 from nfstream import NFStreamer
 from orchestrator import trigger_swarm
 from event_store import store
@@ -13,6 +15,45 @@ from event_store import store
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(name)s] %(message)s', handlers=[logging.FileHandler("system.log"), logging.StreamHandler()], force=True)
 logger = logging.getLogger('Sensor')
+
+# ---------------------------------------------------------
+# Port-scan correlation
+# ---------------------------------------------------------
+# A real port scan (nmap et al.) shows up as many separate 1-2 packet flows -
+# one per probed port - each of which looks statistically identical to an
+# ordinary short connection to the per-flow RF classifier. No single flow
+# carries the "many destination ports from one source in a short window"
+# signal; that only exists across flows. So this tracks a short rolling
+# window per source IP and flags the burst directly, the same technique
+# real NIDS engines (Zeek/Suricata) use for scan detection, independent of
+# the RF models. Shared across both capture threads (eth0/eth1) since a scan
+# targeting an internal host may be observed on either interface.
+SCAN_WINDOW_SECONDS = 5
+SCAN_DISTINCT_TARGET_THRESHOLD = 5  # distinct (dst_ip, dst_port) pairs within the window
+SCAN_MAX_FLOW_PACKETS = 4  # only tiny probe-like flows count towards a scan burst
+
+_recent_probes = defaultdict(deque)  # src_ip -> deque[(dst_ip, dst_port, timestamp)]
+_scan_lock = threading.Lock()
+_scan_alerted_until = {}  # src_ip -> timestamp, to avoid re-alerting every probe in one burst
+SCAN_ALERT_SUPPRESS_SECONDS = 30
+
+def check_port_scan(src_ip, dst_ip, dst_port, total_packets):
+    """Returns the number of distinct targets touched if this source just crossed
+    the scan threshold, else None. Cheap to call on every flow - O(window size)."""
+    if total_packets > SCAN_MAX_FLOW_PACKETS:
+        return None
+    now = time.time()
+    with _scan_lock:
+        suppressed_until = _scan_alerted_until.get(src_ip, 0)
+        dq = _recent_probes[src_ip]
+        dq.append((dst_ip, dst_port, now))
+        while dq and now - dq[0][2] > SCAN_WINDOW_SECONDS:
+            dq.popleft()
+        distinct_targets = {(d, p) for d, p, _ in dq}
+        if len(distinct_targets) >= SCAN_DISTINCT_TARGET_THRESHOLD and now >= suppressed_until:
+            _scan_alerted_until[src_ip] = now + SCAN_ALERT_SUPPRESS_SECONDS
+            return len(distinct_targets)
+    return None
 
 def load_models():
     """Loads the serialized Random Forest models."""
@@ -109,12 +150,33 @@ def analyze_traffic(interface, model_binary, model_multi):
                     
                     # Push to in-memory dashboard store
                     store.add_alert(alert_data)
-                    
-                    # Offload to the CrewAI orchestrator asynchronously
+
+                    # Offload to the LangGraph orchestrator asynchronously
                     threading.Thread(target=trigger_swarm, args=(alert_data,), daemon=True).start()
             else:
                 logger.info(f"Flow: {flow.src_ip} -> {flow.dst_ip} | Proto: {flow.protocol} | Pkts: {flow.bidirectional_packets} | Bytes: {flow.bidirectional_bytes} | Class: Normal | BinConf: {binary_conf:.2f}")
-                
+
+                # A real port scan is many small flows, each individually
+                # indistinguishable from an ordinary short connection to the
+                # per-flow RF classifier above - so check the cross-flow burst
+                # pattern independently, regardless of what the ML model said.
+                scan_hits = check_port_scan(flow.src_ip, flow.dst_ip, flow.dst_port, flow.bidirectional_packets)
+                if scan_hits:
+                    logger.warning(f"Port-scan pattern detected: {flow.src_ip} touched {scan_hits} distinct destination ports/hosts within {SCAN_WINDOW_SECONDS}s")
+                    alert_data = {
+                        "source_ip": flow.src_ip,
+                        "source_port": flow.src_port,
+                        "destination_ip": flow.dst_ip,
+                        "destination_port": flow.dst_port,
+                        "protocol": flow.protocol,
+                        "confidence": 0.9,
+                        "attack_type": "Reconnaissance",
+                        "duration_ms": flow.bidirectional_duration_ms,
+                        "total_bytes": flow.bidirectional_bytes
+                    }
+                    store.add_alert(alert_data)
+                    threading.Thread(target=trigger_swarm, args=(alert_data,), daemon=True).start()
+
     except Exception as e:
         logger.error(f"Error during packet capture on interface {interface}: {e}")
 
