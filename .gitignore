@@ -33,3 +33,4 @@ node_modules/
 
 # Internal Team Notes (Do not commit)
 team_internal_notes/
+.claude/
